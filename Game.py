@@ -1,18 +1,25 @@
 #!/usr/bin/env python
 from Grid import Grid
 from Player import Player
-from Cell import CellType
-from Cell import CellWorth
+from Enums import CellType
+from Enums import CellWorth
+
+gParamBoundary_dimensions = [1, 30]
+gParamBoundary_maxPlayers = [2, 5]
+gParamBoundary_resourceAbundance = [0, 100]
 
 class Game:
-    def __init__(self):
-        self.grid = Grid(7, 7)
-        self.players = [Player(1), Player(2)]
+    def __init__(self, name, dimX, dimY, maxPlayers, resourceAbundance):
+        self.name = name
+        self.grid = Grid(dimX, dimY)
         self.currentPlayerIndex = 0
+        self.maxPlayers = maxPlayers
+        self.resourceAbundance = resourceAbundance
 
         self.playerScores = dict()
-        self.playerScores[self.players[0].getInternalID()] = 0
-        self.playerScores[self.players[1].getInternalID()] = 0
+        self.players = [Player(1), Player(2)] # dummy players
+        self.playerScores[self.players[0].getInternalID()] = 0 # dummy player score
+        self.playerScores[self.players[1].getInternalID()] = 0 # dummy player score
 
         # cell worth hyperparameters
         self.cellPointWorths = dict()

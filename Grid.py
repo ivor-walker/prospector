@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from Cell import Cell
-from Cell import CellType
-from Cell import CellWorth
+from Enums import CellType
+from Enums import CellWorth
 
 from random import random
 
@@ -24,7 +24,7 @@ class Grid:
                 if (x % 2 == 0) and (y % 2 == 0):
                     self.grid[y][x] = Cell(x, y, CellType.SKIP, CellWorth.NORMAL) # skip cells
                 elif (x % 2 == 0) or (y % 2 == 0):
-                    self.grid[y][x] = Cell(x, y, CellType.SELECTABLE, CellWorth.NORMAL) # selectable cells for building fences
+                    self.grid[y][x] = Cell(x, y, CellType.BORDER, CellWorth.NORMAL) # selectable border cells for building fences
                 else:
                     # determine cell worth
                     cellWorth = CellWorth.NORMAL
@@ -52,7 +52,7 @@ class Grid:
         return self.dimensionY
     
     def tryPlaceFence(self, cell, playerID):
-        if cell.getCellType() != CellType.SELECTABLE:
+        if cell.getCellType() != CellType.BORDER:
             return False
         
         cell.setCellType(CellType.FENCE)

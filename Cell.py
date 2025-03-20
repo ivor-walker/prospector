@@ -1,17 +1,6 @@
 #!/usr/bin/env python
-from enum import Enum
-
-class CellType(Enum):
-    SKIP = -1
-    SELECTABLE = 0
-    LAND = 1
-    FENCE = 2
-
-class CellWorth(Enum):
-    NORMAL = 0
-    COPPER = 1
-    SILVER = 2
-    GOLD = 3
+from Enums import CellType
+from Enums import CellWorth
 
 class Cell:
     def __init__(self, x, y, type, worth):
