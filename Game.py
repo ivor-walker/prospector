@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from Grid import Grid
 from Player import Player
 from Enums import CellType
@@ -8,18 +7,36 @@ gParamBoundary_dimensions = [1, 30]
 gParamBoundary_maxPlayers = [2, 5]
 gParamBoundary_resourceAbundance = [0, 100]
 
+"""
+Class representing the logic of a single game
+"""
+
+import random
+import string
+
 class Game:
-    def __init__(self, name, dimX, dimY, maxPlayers, resourceAbundance):
+    def __init__(self, 
+        name = None, 
+        host_username = None,
+        dimX = None, 
+        dimY = None,
+        maxPlayers = 2, 
+        resourceAbundance = None,
+        len_id = 10,
+    ):
+        # Set game state
         self.name = name
+        self.host_username = host_username;
         self.grid = Grid(dimX, dimY)
-        self.currentPlayerIndex = 0
         self.maxPlayers = maxPlayers
         self.resourceAbundance = resourceAbundance
+        self.id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = len_id));
 
-        self.playerScores = dict()
-        self.players = [Player(1), Player(2)] # dummy players
-        self.playerScores[self.players[0].getInternalID()] = 0 # dummy player score
-        self.playerScores[self.players[1].getInternalID()] = 0 # dummy player score
+        # Set player states
+        self.players = [];
+        self.__current_player_index = 0;
+        self.__current_player = None;
+        self.__current_player_username = None;
 
         # cell worth hyperparameters
         self.cellPointWorths = dict()
@@ -31,16 +48,25 @@ class Game:
     def getGrid(self):      
         return self.grid
     
-    def getScores(self):
-        return self.playerScores
-    
-    def getCurrentPlayer(self):
-        return self.players[self.currentPlayerIndex]
-    
-    def tryPlaceFence(self, cell):
-        if self.grid.tryPlaceFence(cell, self.getCurrentPlayer().getInternalID()):
+    def getCellAt(self, x, y):
+        return self.grid.getCellAt(x, y)
+
+    """
+    Try to place a fence on the grid
+    """
+    def tryPlaceFence(self, cell,
+        player_id = None,
+    ):
+        if player_id is None:
+            player_id = self.__current_player_username
+
+        if self.grid.tryPlaceFence(cell, player_id):
             self.checkAdjacentLandClaims(cell)
             self.nextTurn()
+
+            return True
+
+        return False
 
     def checkAdjacentLandClaims(self, cell):
         adjacent = self.getAdjacentCells(cell)
@@ -52,14 +78,14 @@ class Game:
     def checkLandClaim(self, cell):
         landAjcaent = self.getAdjacentCells(cell)
         for fences in landAjcaent:
-            if (fences.getCellType() != CellType.FENCE) or (fences.getPlayerOwner() != self.getCurrentPlayer().getInternalID()):
+            if (fences.getCellType() != CellType.FENCE) or (fences.getPlayerOwner() != self.__current_player_username):
                 return False
         return True
 
     def onLandClaimed(self, cell):
-        cell.setPlayerOwner(self.getCurrentPlayer().getInternalID())
+        cell.setPlayerOwner(self.__current_player_username);
         cellWorth = cell.getCellWorth()
-        self.playerScores[self.getCurrentPlayer().getInternalID()] += self.cellPointWorths[cellWorth]
+        self.__current_player.active_game_score += self.cellPointWorths[cellWorth]
 
     def getAdjacentCells(self, cell):
         adjacent = []
@@ -77,8 +103,41 @@ class Game:
             adjacent.append(adj)
         
         return adjacent
+    
+    """
+    Get score of all players
+    """
+    def getScores(self):
+        playerDict = dict()
+        for player in self.players:
+            playerDict[player] = player.active_game_score
+        return playerDict
+    
+    """
+    Get the current player
+    """
+    def getCurrentPlayer(self):
+        return self.__current_player
 
+    """
+    Change the current player
+    """
     def nextTurn(self):
-        self.currentPlayerIndex += 1
-        if self.currentPlayerIndex >= len(self.players):
-            self.currentPlayerIndex = 0
+        self.__current_player_index += 1
+        if self.__current_player_index >= len(self.players):
+            self.__current_player_index = 0
+
+        self.__current_player = self.players[self.__current_player_index];
+        self.__current_player_username = self.__current_player.username;
+
+    """
+    Add a player to the game
+    """
+    def add_player(self, player):
+        if len(self.players) == self.maxPlayers:
+            raise Exception("Max players reached");
+
+        if player in self.players:
+            raise Exception("Player already in game");
+
+        self.players.append(player);

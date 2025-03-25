@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from Grid import Grid
 from Enums import CellType
 from Enums import CellWorth
@@ -24,6 +23,7 @@ class View:
         curses.init_pair(4, curses.COLOR_CYAN, curses.COLOR_CYAN)
         curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_GREEN)
         self.landColours = [curses.color_pair(1), curses.color_pair(2), curses.color_pair(3), curses.color_pair(4), curses.color_pair(5)]
+        self.landColoursPlayers = dict()
         
         # unclaimed colour
         curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_YELLOW)
@@ -40,6 +40,7 @@ class View:
         curses.init_pair(12, curses.COLOR_CYAN, curses.COLOR_BLACK)
         curses.init_pair(13, curses.COLOR_GREEN, curses.COLOR_BLACK)
         self.fenceColours = [curses.color_pair(9), curses.color_pair(10), curses.color_pair(11), curses.color_pair(12), curses.color_pair(13)]
+        self.fenceColoursPlayers = dict()
 
         # UI elements
         self.currentMenu = None
@@ -105,7 +106,8 @@ class View:
                 self.drawCell(cell, x, y)
 
         # draw scores
-        self.drawScores(playerScores, currentUser)
+        if currentUser != None:
+            self.drawScores(playerScores, currentUser)
 
     def drawCell(self, cell, x, y):
         cellType = cell.getCellType()
@@ -143,21 +145,21 @@ class View:
         offsetY = 2
         for player in playerScores:
             currentColour = self.colourDefault
-            if player == currentPlayer.getInternalID():
+            if player.username == currentPlayer:
                 currentColour = self.colourBold
-            self.stdscr.addstr(offsetY, offsetX, str(player), currentColour)
+            self.stdscr.addstr(offsetY, offsetX, str(player.username), currentColour)
             
-            colour = self.getPlayerColour(player, True)
-            self.stdscr.addstr(offsetY, offsetX + 5, str(playerScores[player]), colour)
+            colour = self.getPlayerColour(player.username, True)
+            self.stdscr.addstr(offsetY, offsetX + 20, str(playerScores[player]), colour)
             offsetY += 1
 
     def getPlayerColour(self, playerID, isFence):
-        if(playerID == -1):
+        if(not playerID in self.landColoursPlayers):
             return curses.COLOR_WHITE
         if isFence:
-            return self.fenceColours[playerID]
+            return self.fenceColoursPlayers[playerID]
         else:    
-            return self.landColours[playerID]
+            return self.landColoursPlayers[playerID]
         
     def getElementPosition(self, elementName):
         self.currentMenu.getElementPosition(elementName)
@@ -168,3 +170,7 @@ class View:
     def navigateMenu(self, currentElement, up):
         element = self.currentMenu.navigateMenu(currentElement, up)
         return element
+
+    def onPlayerAdded(self, playerID, num):
+        self.landColoursPlayers[playerID] = self.landColours[num]
+        self.fenceColoursPlayers[playerID] = self.fenceColours[num]

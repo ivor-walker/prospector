@@ -13,11 +13,39 @@ import curses
 from curses import wrapper
 
 # single-player
-from Server import Server
+from conn.server import Server
+from conn.server_connection import ServerConnection
+
+# multi-player
+from conn.client_connection import ClientConnection
+
+from Player import Player
 
 class Client:
-    def __init__(self, stdscr):
-        self.serverDummy = Server() # single-player
+    def __init__(self, stdscr, single_player = False):
+        # Connect to 'server' object in memory if single player
+        if single_player:
+            self.__server = Server();
+            self.__server_connection = self.__server.create_client();
+            self.__connection = ClientConnection(server_connection = self.__server_connection);
+            self.__server_connection._Connection__connection = self.__connection;
+            
+        # Connect to server via socket if multiplayer
+        else:
+            self.__connection = ClientConnection();
+        
+        self.__connection.add_listener(self);
+
+        # Create sample users
+        self.__connection.send_signup(
+            username = "Lars",
+            password = "password"
+        );
+        
+        self.__connection.send_signup(
+            username = "Ivor",
+            password = "password"
+        );
 
         # init
         self.stdscr = stdscr
@@ -25,6 +53,7 @@ class Client:
         self.username = ""
         self.password = ""
         self.game = None
+        self.gamesList = None
         self.playing = True
         self.userState = UserState.NONE
         self.selectedElement = None
@@ -36,12 +65,97 @@ class Client:
     
         self.onUserStateChanged(UserState.LOGIN)
         self.stdscr.refresh()
+        self.draw()
         self.userLoop()
 
     def userLoop(self):
-        while self.playing:         
+        while self.playing:
             self.captureInput()
             self.stdscr.refresh()
+    
+    """
+    Listeners for login
+    """
+    def recieve_login_success(self):
+        self.onUserStateChanged(UserState.ROOMSLIST)
+    
+    def recieve_login_failure(self, message):
+        self.onUserStateChanged(UserState.LOGIN)
+        # TODO Display failure message
+    
+    """
+    Listeners for joining an existing game
+    """
+    def recieve_join_game_success(self):
+        game = Game(
+            name = self.optionNameGame,
+            length = self.optionMapX,
+            height = self.optionMapY,
+            max_players = self.optionNumPlayers,
+            resource_abundance = self.optionResourceAbundance
+        );
+
+        self.onStartGame(game);
+
+    def recieve_join_game_failure(self, message):
+        self.onUserStateChanged(UserState.ROOMSLIST);
+        # TODO Display failure message
+    
+    """
+    Listeners for listing games
+    """
+    def recieve_list_games_names(self, games):
+        self.gamesList = games
+        self.draw()
+    
+    """
+    Listener for recieving players in a game
+    """
+    def recieve_players_in_game(self, players):
+        players = [Player(player) for player in players]
+        self.game.players = players;
+        index = 0
+        for player in players:
+            self.view.onPlayerAdded(player.username, index)
+            index += 1
+
+        self.draw()
+
+    """
+    Listeners for creating a new game
+    """
+    def recieve_new_game_success(self):
+        # Create local copy of game and start it
+        game = Game(
+            name = self.optionNameGame, 
+            dimX = self.optionMapX,
+            dimY = self.optionMapY,
+            maxPlayers = self.optionNumPlayers,
+            resourceAbundance = self.optionResourceAbundance,
+        );
+
+        self.onStartGame(game);
+    
+    def recieve_new_game_failure(self, message):
+        self.onUserStateChanged(UserState.MAKEGAME);
+        # TODO Display failure message
+
+    """
+    Listeners for placing a fence
+    """
+    def recieve_place_fence_success(self):
+        #self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
+        self.draw()
+
+    def recieve_place_fence_failure(self, message):
+        ();
+        # TODO Display failure message
+
+    def recieve_place_fence_request(self, x, y, owner):
+        cell = self.game.getCellAt(x, y)
+        self.game.tryPlaceFence(cell, player_id = owner);
+        self.draw()
+
     
     def captureInput(self):
         if self.userState == UserState.LOGIN:
@@ -57,8 +171,13 @@ class Client:
             self.password = Helpers.convertString(key)
             self.selectedElement.setDisplayString(self.password)
 
-            self.onUserStateChanged(UserState.ROOMSLIST) # replace with call to server for validating user
+            self.__connection.send_login( 
+                username = self.username,
+                password = self.password
+            );
+
             return
+
         elif self.userState == UserState.ROOMSLIST:
             key = -1
             while key != 10 or self.selectedElement == None:
@@ -72,10 +191,13 @@ class Client:
             if gameName == "MakeGame":
                 self.onUserStateChanged(UserState.MAKEGAME)
                 return
+
             else:
-                # ask server to join game with this name
-                self.onStartGame(Game(self.optionNameGame, self.optionMapX, self.optionMapY, self.optionNumPlayers, self.optionResourceAbundance)) # delete me later, should ask server
-            return
+                self.__connection.send_join_game(
+                    game_name = gameName
+                );
+                return
+
         elif self.userState == UserState.MAKEGAME:
             self.resetLocalGame()
 
@@ -133,9 +255,16 @@ class Client:
                     self.optionResourceAbundance = value
                     invalid = False
                     self.selectedElement.setDisplayString(self.optionResourceAbundance)
-
-            self.onStartGame(Game(self.optionNameGame, self.optionMapX, self.optionMapY, self.optionNumPlayers, self.optionResourceAbundance)) # delete me later, ask server to create game
+                
+            self.__connection.send_new_game(
+                name = self.optionNameGame,
+                length = self.optionMapX,
+                height = self.optionMapY,
+                max_players = self.optionNumPlayers,
+                resource_abundance = self.optionResourceAbundance
+            );
             return
+
         elif self.userState == UserState.GAME:
             currentX = self.selectedCell.getPosX()
             currentY = self.selectedCell.getPosY()
@@ -153,10 +282,10 @@ class Client:
             elif key == curses.KEY_RIGHT:
                 self.tryMoveCursor(currentX, currentY, 1, 0)
             elif key == 10: # press enter to place fence
-                self.game.tryPlaceFence(self.selectedCell) # replace with call to server
-            
-            self.onStateChange() # changes view. delete this call and call it in method coming from server upon game update (fence places)
-            self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX())
+                self.__connection.send_place_fence( 
+                    x = currentX,
+                    y = currentY,
+                );
 
     def resetLocalGame(self):
         self.game = None
@@ -172,8 +301,9 @@ class Client:
 
     def onStartGame(self, game):
         self.game = game
-        self.selectedCell = self.game.getGrid().getCellAt(0, 0)
         self.onUserStateChanged(UserState.GAME)
+        self.selectedCell = self.game.getGrid().getCellAt(0, 0)
+        self.__connection.send_list_players_in_game();
 
     def exitGame(self):
         self.resetLocalGame()
@@ -203,6 +333,10 @@ class Client:
                             currentX += 1
                             break
         self.selectCell(currentX, currentY, cell)
+        self.stdscr.refresh()
+        self.draw()
+        self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
+        
 
     def onUserStateChanged(self, newState):
         self.userState = newState
@@ -216,6 +350,7 @@ class Client:
             curses.echo()
             curses.curs_set(1)
         elif newState == UserState.ROOMSLIST:
+            self.__connection.send_list_games_names();
             curses.noecho()
             curses.curs_set(1)
         elif newState == UserState.MAKEGAME:
@@ -246,7 +381,9 @@ class Client:
 
         # highlighting
         if highlight:
-            element.display(self.stdscr, highlight)            
+            element.display(self.stdscr, highlight)
+        self.draw()
+        self.selectCurrentElement()     
 
     def canMoveTo(self, cell):
         return cell != None and (cell.getCellType() == CellType.BORDER or cell.getCellType() == CellType.FENCE)
@@ -258,15 +395,18 @@ class Client:
         grid = None
         userScores = None
         currentUser = None
+        currentUserName = None
+        roomsList = []
         if self.game != None:
             grid = self.game.getGrid()
             userScores = self.game.getScores()
             currentUser = self.game.getCurrentPlayer()
-        gamesList = None
-        if self.serverDummy != None:
-            gamesList = self.serverDummy.getGamesList()
+            roomsList = self.gamesList
+            if currentUser != None:
+                currentUserName = currentUser.username
+
+        self.view.draw(grid, currentUserName, userScores, roomsList)
         
-        self.view.draw(grid, currentUser, userScores, gamesList)
 
 def main(stdscr):
     client = Client(stdscr)
