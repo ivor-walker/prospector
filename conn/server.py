@@ -4,7 +4,7 @@ Recieves and processes requests from clients
 from conn.server_connection import ServerConnection;
 from Leaderboard import Leaderboard;
 
-import socket;
+import asyncio;
 
 
 class Server:
@@ -19,42 +19,53 @@ class Server:
         self.__clients = {};
     
         if not no_socket:
-            self.__start_server();
+            asyncio.run(self.__start_server())
     
     """
     Listen for new sockets
     """
-    def __start_server(self,
+    async def __start_server(self,
         host = "localhost",
         port = 12345,
         max_incoming_connections = 5,
     ):
         # Create and bind socket
-        self.__server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
-        self.__server_socket.bind((host, port));
+        self.__server_socket = await asyncio.start_server(self.__create_network_client, host, port);
     
-        self.__server_socket.listen(max_incoming_connections)
-
-        self.__listening = True;
-        while self.__listening:
-            # Block until new connection, then create a server connection and pass opened socket to it
-            client_socket, client_address = self.__server_socket.accept();
-            self.create_client(
-                sock = client_socket
-            );
+        async with self.__server_socket:
+            await self.__server_socket.serve_forever();
 
     """
-    Create a new server connection to a client
+    Create a new server connection synchronously
     """
-    def create_client(self, sock = None):
-        client = ServerConnection(
-            server = self,
-            sock = sock,
-        );
-        self.__clients[client.id] = client;
-        print(f"New client registered with server at serverConnection id {client.id}")
+    def create_client(self):
+        client = ServerConnection();
+        self.__register_client(client)
         return client;
 
+    """
+    Create a new server connection to a client asynchronously
+    """
+    async def __create_network_client(self, reader, writer):
+        client = ServerConnection(
+            server = self,
+            reader = reader,
+            writer = writer,
+        );
+        self.__register_client(client);
+
+        print(f"New client registered with server at serverConnection id {client.id}")
+        
+        await client._listen();
+    
+    """
+    Register a client with the server
+    """
+    def __register_client(self, client):
+        self.__clients[client.id] = client;
+    
+    
+    
     """
     Get list of game names
     """

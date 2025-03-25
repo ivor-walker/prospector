@@ -11,8 +11,6 @@ import json
 import random
 import string
 
-import socket
-
 import traceback
 
 class Connection:
@@ -23,12 +21,15 @@ class Connection:
     def __init__(self,
         lenid= 10,
         server = None,
+        reader = None,
+        writer = None,
         sock = None,
         connection = None,
         send_acknowledgement = True,
-        debug = False,
+        debug = True,
     ):
         self.__debug = debug;
+        self.__single_player = True;
 
         # Randomly generate an id
         self.id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = lenid));
@@ -40,20 +41,22 @@ class Connection:
         self.__send_acknowledgement = send_acknowledgement;
 
         # Start listening for messages asynchronously
-        if sock is not None:
+        if reader is not None:
+            self.__reader = reader;
+            self.__writer = writer;
+        
+        elif sock is not None:
             self.__sock = sock;
-            asyncio.create_task(self._listen());
 
         # Write to in-memory connection directly
         elif connection is not None:
             self.__connection = connection;
     
     """
-    Listen for messages from the server
+    Listen for messages from the other connection
     """
     async def _listen(self):
         try:
-            self.__reader, self.__writer = await asyncio.open_connection(sock = self.__sock);
             self._listening = True;
 
             # Listen for messages

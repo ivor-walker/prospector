@@ -20,15 +20,18 @@ class ServerConnection(Connection):
     """
     def __init__(self, 
         server = None, 
-        sock = None,
+        reader = None,
+        writer = None,
         connection = None,
         len_id = 10,
     ):
         # Start listening if a sock is provided
         super().__init__(
             server = server,
-            sock = sock,
+            reader = None,
+            writer = None,
             connection = connection,
+            debug = True,
         );
     
     """
@@ -60,6 +63,7 @@ class ServerConnection(Connection):
         playerNotFound = "Player not found",
         passwordIncorrect = "Password incorrect"
     ):
+
         # Authenticate player
         player = self._server.leaderboard.get_player(username, check_no_player = False);
         
