@@ -175,3 +175,14 @@ class Game:
         
         target_index = target_indices[0];
         self.players.pop(target_index);
+
+    def getWinner(self):
+        winner = None
+        highestScore = 0
+        scores = self.getScores()
+        for player in self.players:
+            score = scores[player]
+            if score > highestScore:
+                highestScore = score
+                winner = player
+        return winner
