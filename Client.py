@@ -48,6 +48,7 @@ class Client:
         self.playing = True
         self.userState = UserState.NONE
         self.selectedElement = None
+        self.userScores = None
         self.blockInput = False
         self.resetLocalGame()
 
@@ -290,6 +291,7 @@ class Client:
                     y = currentY,
                 );
         elif self.userState == UserState.ENDSCREEN:
+            key = -1
             while key != 10:
                 key = self.stdscr.getch()
 
@@ -407,19 +409,17 @@ class Client:
     def draw(self):
         grid = None
         userScores = None
-        currentUser = None
-        currentUserName = None
+        currentUserName = self.username
         roomsList = []
         if self.game != None:
             grid = self.game.getGrid()
             userScores = self.game.getScores()
-            currentUser = self.game.getCurrentPlayer()
-            currentUser = self.game.getCurrentPlayer()
+            self.userScores = userScores
             roomsList = self.gamesList
-            if currentUser != None:
-                currentUserName = currentUser.username
+        else:
+            userScores = self.userScores
 
-        self.view.draw(grid, currentUserName, userScores, roomsList)
+        self.view.draw(grid, currentUserName, userScores, roomsList, self.usernameWinner)
         
 
 def main(stdscr):

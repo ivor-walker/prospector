@@ -99,7 +99,9 @@ class View:
         elif self.currentMenu == self.menuEndscreen:
             self.currentMenu.clearElements()
             if playerWinner == currentUser:
-                return
+                self.stdscr.addstr(1, 1, "You won the game!", self.colourDefault)
+            else:
+                self.stdscr.addstr(1, 1, "You lost the game... " + str(playerWinner) + " won the game.", self.colourDefault)
 
             if currentUser != None:
                 self.drawScores(playerScores, currentUser)
