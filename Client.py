@@ -57,7 +57,6 @@ class Client:
         self.stdscr.nodelay(False)
     
         self.onUserStateChanged(UserState.LOGIN)
-        self.stdscr.refresh()
         self.draw()
         self.userLoop()
 
@@ -85,13 +84,10 @@ class Client:
     """
     Listeners for joining an existing game
     """
-    def recieve_join_game_success(self):
+    def recieve_join_game_success(self, game_options):
+         # Create local copy of game and start it
         game = Game(
-            name = self.optionNameGame,
-            length = self.optionMapX,
-            height = self.optionMapY,
-            max_players = self.optionNumPlayers,
-            resource_abundance = self.optionResourceAbundance
+            **game_options
         );
 
         self.onStartGame(game);
@@ -115,6 +111,7 @@ class Client:
             self.onUserStateChanged(UserState.ENDSCREEN)
         else:
             self.draw()
+            self.stdscr.refresh()
 
     """
     Listener for game over
@@ -127,8 +124,8 @@ class Client:
     """
     def recieve_list_games_names(self, games):
         self.gamesList = games
-        self.stdscr.refresh()
         self.draw()
+        self.stdscr.refresh()
     
     """
     Listener for recieving players in a game
@@ -142,6 +139,7 @@ class Client:
             index += 1
 
         self.draw()
+        self.stdscr.refresh()
 
     """
     Listeners for creating a new game
@@ -168,8 +166,10 @@ class Client:
     Listeners for placing a fence
     """
     def recieve_place_fence_success(self):
+        self.stdscr.clear()
         self.draw()
         self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
+        self.stdscr.refresh()
 
     def recieve_place_fence_failure(self, message):
         self.view.displayError(message)
@@ -178,7 +178,10 @@ class Client:
     def recieve_place_fence_request(self, x, y, owner):
         cell = self.game.getCellAt(x, y)
         self.game.tryPlaceFence(cell, player_id = owner);
+        self.stdscr.clear()
         self.draw()
+        self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
+        self.stdscr.refresh()
 
     
     def captureInput(self):
@@ -300,6 +303,7 @@ class Client:
             currentY = self.selectedCell.getPosY()
 
             self.stdscr.move(currentY, currentX);
+            self.stdscr.refresh()
             key = self.stdscr.getch()
             if Helpers.convertChar(key) == "q":
                 self.exitGame()
@@ -339,6 +343,7 @@ class Client:
         self.optionResourceAbundance = 20
 
     def onStartGame(self, game):
+        self.stdscr.clear()
         self.game = game
         self.onUserStateChanged(UserState.GAME)
         self.selectedCell = self.game.getGrid().getCellAt(0, 1)
@@ -372,9 +377,10 @@ class Client:
                             currentX += 1
                             break
         self.selectCell(currentX, currentY, cell)
-        self.stdscr.refresh()
+        self.stdscr.clear()
         self.draw()
         self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
+        self.stdscr.refresh()
         
 
     def onUserStateChanged(self, newState):
@@ -402,16 +408,18 @@ class Client:
             curses.noecho()
             curses.curs_set(0)
 
-    def selectCurrentElement(self):
-        if self.selectedElement == None:
+    def selectCurrentElement(self, highlight = False):
+        element = self.selectedElement
+        if element == None:
             return
 
-        pos = self.selectedElement.getPosition()
+        pos = element.getPosition()
         self.stdscr.move(pos[0], pos[1])
 
-    def navigateMenu(self, up, highlight):
-        self.draw()
+        if highlight:
+            self.selectedElement.display(self.stdscr, highlight)
 
+    def navigateMenu(self, up, highlight):
         if self.selectedElement:
             self.selectedElement.display(self.stdscr, False)
 
@@ -425,7 +433,9 @@ class Client:
             if highlight:
                 element.display(self.stdscr, highlight)
 
-        self.selectCurrentElement()     
+        self.stdscr.clear()
+        self.draw()
+        self.selectCurrentElement(highlight)     
 
     def canMoveTo(self, cell):
         return cell != None and (cell.getCellType() == CellType.BORDER or cell.getCellType() == CellType.FENCE)
@@ -433,9 +443,7 @@ class Client:
     def selectCell(self, x, y ,cell):
         self.selectedCell = cell
 
-    def draw(self, noClear = False):
-        if not noClear:
-            self.stdscr.clear()
+    def draw(self):
         grid = None
         userScores = None
         currentUserName = self.username
@@ -451,7 +459,6 @@ class Client:
             userScores = self.userScores
 
         self.view.draw(grid, currentUserName, userScores, roomsList, self.usernameWinner)
-        self.stdscr.refresh()
 
 def main(stdscr):
     client = Client(stdscr)

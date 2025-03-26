@@ -45,7 +45,7 @@ class Server:
     """
     def __start_server(self,
         host = "localhost",
-        port = 9990,
+        port = 9989,
         max_clients = 5,
         timeout = 1,
     ):
