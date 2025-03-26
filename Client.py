@@ -300,6 +300,7 @@ class Client:
         self.game = None
         self.selectedCell = None
         self.selectedElement = None
+        self.usernameWinner = None
 
         # game options
         self.optionNameGame = "Game"
@@ -412,6 +413,7 @@ class Client:
         if self.game != None:
             grid = self.game.getGrid()
             userScores = self.game.getScores()
+            currentUser = self.game.getCurrentPlayer()
             currentUser = self.game.getCurrentPlayer()
             roomsList = self.gamesList
             if currentUser != None:

@@ -86,7 +86,7 @@ class View:
         elif userState == UserState.ENDSCREEN:
             self.currentMenu = self.menuEndscreen
 
-    def draw(self, grid, currentUser, playerScores, gamesList, currentGameWin):
+    def draw(self, grid, currentUser, playerScores, gamesList, playerWinner):
         if self.currentMenu == self.menuGame:
             self.drawGame(grid, playerScores, currentUser)
         elif self.currentMenu == self.menuRooms:
@@ -98,7 +98,7 @@ class View:
             self.currentMenu.addElement(UIElement("MakeGame", 2 + index, 10, "New Game", True))
         elif self.currentMenu == self.menuEndscreen:
             self.currentMenu.clearElements()
-            if currentGameWin:
+            if playerWinner == currentUser:
                 return
 
             if currentUser != None:
