@@ -7,6 +7,7 @@ class UserState(Enum):
     ROOMSLIST = 2
     MAKEGAME = 3
     GAME = 4
+    ENDSCREEN = 5
 
 class CellType(Enum):
     SKIP = -1

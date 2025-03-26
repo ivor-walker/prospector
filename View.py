@@ -71,6 +71,8 @@ class View:
 
         self.menuGame = UIMenu(self.screenWidthHeight[0], self.screenWidthHeight[1])
 
+        self.menuEndscreen = UIMenu(self.screenWidthHeight[0], self.screenWidthHeight[1])
+
 
     def onUserStateChanged(self, userState):
         if userState == UserState.LOGIN:
@@ -81,8 +83,10 @@ class View:
             self.currentMenu = self.menuMakeGame           
         elif userState == UserState.GAME:
             self.currentMenu = self.menuGame
+        elif userState == UserState.ENDSCREEN:
+            self.currentMenu = self.menuEndscreen
 
-    def draw(self, grid, currentUser, playerScores, gamesList):
+    def draw(self, grid, currentUser, playerScores, gamesList, currentGameWin):
         if self.currentMenu == self.menuGame:
             self.drawGame(grid, playerScores, currentUser)
         elif self.currentMenu == self.menuRooms:
@@ -92,6 +96,13 @@ class View:
                 self.currentMenu.addElement(UIElement("Game" + str(index), 2 + index, 10, "Game" + str(index), True))
                 index += 1
             self.currentMenu.addElement(UIElement("MakeGame", 2 + index, 10, "New Game", True))
+        elif self.currentMenu == self.menuEndscreen:
+            self.currentMenu.clearElements()
+            if currentGameWin:
+                return
+
+            if currentUser != None:
+                self.drawScores(playerScores, currentUser)
         
         self.currentMenu.displayMenu(self.stdscr)
 

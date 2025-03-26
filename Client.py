@@ -48,6 +48,7 @@ class Client:
         self.playing = True
         self.userState = UserState.NONE
         self.selectedElement = None
+        self.blockInput = False
         self.resetLocalGame()
 
         # curses options
@@ -69,8 +70,10 @@ class Client:
     """
     def recieve_login_success(self):
         self.onUserStateChanged(UserState.ROOMSLIST)
+        self.blockInput = False
     
     def recieve_login_failure(self, message):
+        self.blockInput = False
         self.onUserStateChanged(UserState.LOGIN)
         # TODO Display failure message
     
@@ -87,8 +90,10 @@ class Client:
         );
 
         self.onStartGame(game);
+        self.blockInput = False
 
     def recieve_join_game_failure(self, message):
+        self.blockInput = False
         self.onUserStateChanged(UserState.ROOMSLIST);
         # TODO Display failure message
     
@@ -126,6 +131,7 @@ class Client:
         );
 
         self.onStartGame(game);
+        self.blockInput = False
     
     def recieve_new_game_failure(self, message):
         self.onUserStateChanged(UserState.MAKEGAME);
@@ -149,6 +155,9 @@ class Client:
 
     
     def captureInput(self):
+        if self.blockInput:
+            return
+
         if self.userState == UserState.LOGIN:
             
             self.navigateMenu(True, False)
@@ -167,6 +176,7 @@ class Client:
                 username = self.username,
                 password = self.password
             );
+            self.blockInput = True
 
             return
 
@@ -255,6 +265,7 @@ class Client:
                 max_players = self.optionNumPlayers,
                 resource_abundance = self.optionResourceAbundance
             );
+            self.blockInput = True
             return
 
         elif self.userState == UserState.GAME:
@@ -278,6 +289,12 @@ class Client:
                     x = currentX,
                     y = currentY,
                 );
+        elif self.userState == UserState.ENDSCREEN:
+            while key != 10:
+                key = self.stdscr.getch()
+
+            self.onUserStateChanged(UserState.ROOMSLIST)
+            return
 
     def resetLocalGame(self):
         self.game = None
@@ -299,7 +316,7 @@ class Client:
 
     def exitGame(self):
         self.resetLocalGame()
-        self.onUserStateChanged(UserState.ROOMSLIST)
+        self.onUserStateChanged(UserState.ENDSCREEN)
 
     def tryMoveCursor(self, currentX, currentY, moveX, moveY):
         while True:
@@ -351,6 +368,9 @@ class Client:
         elif newState == UserState.GAME:
             curses.noecho()
             curses.curs_set(1)
+        elif newState == UserState.ENDSCREEN:
+            curses.noecho()
+            curses.curs_set(0)
 
     def onStateChange(self):
         self.draw()
