@@ -28,10 +28,13 @@ class Game:
         # Set game state
         self.name = name
         self.host_username = host_username;
-        self.grid = Grid(dimX, dimY)
+        
+        self.dimX = dimX;
+        self.dimY = dimY;
+        
+        self.grid = Grid(dimX, dimY, resourceAbundance)
         self.landCells = self.grid.getAllLandCells()
         self.maxPlayers = maxPlayers
-        self.resourceAbundance = resourceAbundance
         self.id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = len_id));
 
         # Set player states

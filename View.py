@@ -46,10 +46,14 @@ class View:
         self.currentMenu = None
 
         self.menuLogin = UIMenu(self.screenWidthHeight[0] / 2, self.screenWidthHeight[1] / 2)
-        self.menuLogin.addElement(UIElement("Username", 2, 10, "Username:", False))
-        self.menuLogin.addElement(UIElement("UsernameField", 2, 23, "", True))
-        self.menuLogin.addElement(UIElement("Password", 4, 10, "Password:", False))
-        self.menuLogin.addElement(UIElement("PasswordField", 4, 23, "", True))
+        self.menuLogin.addElement(UIElement("StaticField1", 1, 23, "WELCOME TO PROSPECTOR", False))
+        self.menuLogin.addElement(UIElement("StaticField1", 2, 23, "Produced by 240032297 and 240032316 for assessment 2 of CS5003", False))
+        self.menuLogin.addElement(UIElement("StaticField1", 4, 23, "Sign up or Log in", False))
+        self.menuLogin.addElement(UIElement("Username", 5, 10, "Username:", False))
+        self.menuLogin.addElement(UIElement("UsernameField", 5, 23, "", True))
+        self.menuLogin.addElement(UIElement("Password", 7, 10, "Password:", False))
+        self.menuLogin.addElement(UIElement("PasswordField", 7, 23, "", True))
+
 
         self.menuRooms = UIMenu(self.screenWidthHeight[0], self.screenWidthHeight[1])
 

@@ -6,14 +6,14 @@ from Enums import CellWorth
 from random import random
 
 class Grid:
-    def __init__(self, dimX, dimY):
+    def __init__(self, dimX, dimY, abundance):
         self.dimensionX = (dimX * 2) - 1
         self.dimensionY = (dimY * 2) - 1
 
         # random parameters
-        self.percentGold = 5
-        self.percentSilver = 10
-        self.percentCopper = 15
+        self.percentGold = float(abundance) * 0.2
+        self.percentSilver = float(abundance) * 0.3
+        self.percentCopper = float(abundance) * 0.5
 
         self.initialiseGrid()
 
