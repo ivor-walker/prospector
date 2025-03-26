@@ -50,7 +50,7 @@ class Game:
     
     def getCellAt(self, x, y):
         return self.grid.getCellAt(x, y)
-
+    
     """
     Try to place a fence on the grid
     """
@@ -129,7 +129,7 @@ class Game:
 
         self.__current_player = self.players[self.__current_player_index];
         self.__current_player_username = self.__current_player.username;
-
+    
     """
     Add a player to the game
     """
@@ -141,3 +141,16 @@ class Game:
             raise Exception("Player already in game");
 
         self.players.append(player);
+
+    """
+    Remove a player from the game
+    """
+    def remove_player(self, username):
+        target_indices = [i for i, p in enumerate(self.players) if p.username == username];
+
+        if len(target_indices) == 0:
+            raise Exception(f"Player {username} not in game");
+        
+        target_index = target_indices[0];
+        self.players.pop(target_index);
+

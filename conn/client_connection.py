@@ -143,11 +143,12 @@ class ClientConnection(Connection):
     Recieve place fence response from server
     """
     def place_fence(self, message):
-        if message == "success":
-            [listener.recieve_place_fence_success() for listener in self.listeners];
+        if type(message) == str:
+            if message == "success":
+                [listener.recieve_place_fence_success() for listener in self.listeners];
 
-        elif message == "error":
-            [listener.recieve_place_fence_failure(message) for listener in self.listeners];
+            else:
+                [listener.recieve_place_fence_failure(message) for listener in self.listeners];
         
         # Server telling player of a newly placed fence
         else:
@@ -175,13 +176,15 @@ class ClientConnection(Connection):
     Ask server to leave the active game
     """
     def send_leave_game(self):
-        self.send("leaveGame", "request", "Client requested to leave active game");
+        self.send("leaveGame", "request", {
+            "player": "self"
+        });
 
     """
-    Recieve leave game request from server (kicked from game)
+    Recieve leave game request from server (either user was kicked or 
     """
-    def leave_game(self):
-        [listener.recieve_kicked_game() for listener in self.listeners];
+    def leave_game(self, player):
+        [listener.recieve_leave_game(player) for listener in self.listeners];
         
     """
     Ask server to list all games

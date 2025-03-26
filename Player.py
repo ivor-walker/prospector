@@ -9,7 +9,6 @@ class Player:
     def __init__(self,
         username = None,
         password = None,
-        len_id = 10,
     ):
         self.username = username;
         self.__password = password;
@@ -72,9 +71,7 @@ class Player:
     def leave_active_game(self):
         # Clean up active game
         active_game = self.__get_active_game();
-        active_game.remove_player(self);
+        active_game.remove_player(self.username);
         
         # Unset active game
-        self.__set_active_game(None);
-
-
+        self.__active_game = None;

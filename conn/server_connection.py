@@ -38,7 +38,10 @@ class ServerConnection(Connection):
         # Stop listening loop and inform server
         self._listening = False;
         self._server.disconnect(self.id);
-        
+
+        # Inform other clients in game
+        self.leave_game(); 
+
         if self._sock is not None:
             self._sock.close();
     
@@ -177,9 +180,17 @@ class ServerConnection(Connection):
     """
     Leave the current player's game
     """
-    def leave_game(self):
+    def leave_game(self, player):
+        # Tell all clients
+        game_player_ids = [p.username for p in self.__game.players];
+        self._server.send_to_players(game_player_ids, "leaveGame", "response", {
+            "player": self.player.username
+        });
+
+        # Tell local player
         self.player.leave_active_game();
-    
+
+        
     """
     List all games
     """

@@ -70,8 +70,11 @@ class Client:
     Listeners for login
     """
     def recieve_login_success(self):
+        self.player = Player(username = self.username);
+
         self.onUserStateChanged(UserState.ROOMSLIST)
         self.blockInput = False
+
     
     def recieve_login_failure(self, message):
         self.blockInput = False
@@ -98,6 +101,27 @@ class Client:
         self.onUserStateChanged(UserState.ROOMSLIST);
         # TODO Display failure message
     
+    """
+    Listener for leaving a game
+    """
+    def recieve_leave_game(self, username):
+        self.game.remove_player(username)
+
+        if self.player.username == username:
+            self.resetLocalGame()
+            self.onUserStateChanged(UserState.ENDSCREEN)
+
+            self.onUserStateChanged(UserState.ROOMSLIST)
+
+        else:
+            self.draw()
+
+    """
+    Listener for game over
+    """
+    def recieve_game_over(self):
+        ();
+
     """
     Listeners for listing games
     """
@@ -318,9 +342,8 @@ class Client:
         self.__connection.send_list_players_in_game();
 
     def exitGame(self):
-        self.resetLocalGame()
-        self.onUserStateChanged(UserState.ENDSCREEN)
-
+        self.__connection.send_leave_game();
+        
     def tryMoveCursor(self, currentX, currentY, moveX, moveY):
         while True:
             currentX += moveX

@@ -71,7 +71,10 @@ class Connection:
                     print(f"Connection {self.id} ({self.__connection_type}) waiting for a message");
 
                 # Read a message
-                line = self.__reader.readline();
+                try:
+                    line = self.__reader.readline();
+                except ConnectionResetError as e:
+                    raise ConnectionResetError(e);
 
                 if line == "":
                     break;
@@ -79,17 +82,24 @@ class Connection:
                 line = line.strip();
                 if line:
                     self.handle_message(line);
+        
+        except ConnectionResetError as e:
+            pass;
 
         except Exception as e:
             self.__handle_error(e);
 
         finally:
-            self.__handle_error(f"Connection {self.id} closed");
+            self.__handle_error(f"Connection {self.id} closed", attempt_send = False);
+            
+            if hasattr(self, "_ServerConnection__game"):
+                self.leave_game("self");
 
             if self._sock is not None:
                 self._sock.close();
                 self._sock = None;
-
+            
+            
             return;
     
     """
@@ -166,9 +176,21 @@ class Connection:
     """
     def handle_message(self, message,
         unknown_message = "Unknown message category",
-        message_category_no_reply = ["disconnect", "listGamesNames"],
+        message_category_no_reply = ["disconnect", "listGamesNames", "leaveGame", "listPlayersInGame"],
         message_status_no_reply = ["error"],
     ):
+        category_handle_dict = {
+            "disconnect": self.disconnect,
+            "listGamesNames": self.list_games_names,
+            "listPlayersInGame": self.list_players_in_game,
+            "login": self.login,
+            "signup": self.signup,
+            "newGame": self.new_game,
+            "existingGame": self.join_game,
+            "placeFence": self.place_fence,
+            "leaveGame": self.leave_game,
+        };
+
         if self.__debug: 
             print(f"Connection {self.id} ({self.__connection_type}) received message: {message}");
 
@@ -188,34 +210,10 @@ class Connection:
         try:
             if message_status == "error":
                 self.__handle_error(message, attempt_send = False);
-
-            elif message_category == "disconnect":
-                self.disconnect();
             
-            elif message_category == "listGamesNames":
-                self.list_games_names(**message);
-            
-            elif message_category == "listPlayersInGame":
-                self.list_players_in_game(**message)
+            elif message_category in category_handle_dict:
+                category_handle_dict[message_category](**message);
 
-            elif message_category == "login":
-                self.login(**message);
-
-            elif message_category == "signup":
-                self.signup(**message);
-
-            elif message_category == "newGame":
-                self.new_game(**message);
-
-            elif message_category == "existingGame":
-                self.existing_game(**message);
-            
-            elif message_category == "placeFence":
-                self.place_fence(**message);
-
-            elif message_category == "leaveGame":
-                self.leave_game(**message);
-                        
             # Valid message category not sent
             else:
                 raise Exception(unknown_message);
