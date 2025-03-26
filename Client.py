@@ -44,7 +44,7 @@ class Client:
         self.username = ""
         self.password = ""
         self.game = None
-        self.gamesList = None
+        self.gamesList = []
         self.playing = True
         self.userState = UserState.NONE
         self.selectedElement = None
@@ -79,6 +79,7 @@ class Client:
     def recieve_login_failure(self, message):
         self.blockInput = False
         self.onUserStateChanged(UserState.LOGIN)
+        self.view.displayError(message)
         # TODO Display failure message
     
     """
@@ -99,6 +100,7 @@ class Client:
     def recieve_join_game_failure(self, message):
         self.blockInput = False
         self.onUserStateChanged(UserState.ROOMSLIST);
+        self.view.displayError(message)
         # TODO Display failure message
     
     """
@@ -106,13 +108,11 @@ class Client:
     """
     def recieve_leave_game(self, username):
         self.game.remove_player(username)
+        self.view.onPlayerRemoved(username)
 
         if self.player.username == username:
             self.resetLocalGame()
             self.onUserStateChanged(UserState.ENDSCREEN)
-
-            self.onUserStateChanged(UserState.ROOMSLIST)
-
         else:
             self.draw()
 
@@ -127,6 +127,7 @@ class Client:
     """
     def recieve_list_games_names(self, games):
         self.gamesList = games
+        self.stdscr.refresh()
         self.draw()
     
     """
@@ -159,18 +160,19 @@ class Client:
         self.blockInput = False
     
     def recieve_new_game_failure(self, message):
-        self.onUserStateChanged(UserState.MAKEGAME);
+        self.onUserStateChanged(UserState.ROOMSLIST);
+        self.view.displayError(message)
         # TODO Display failure message
 
     """
     Listeners for placing a fence
     """
     def recieve_place_fence_success(self):
-        #self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
         self.draw()
+        self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
 
     def recieve_place_fence_failure(self, message):
-        ();
+        self.view.displayError(message)
         # TODO Display failure message
 
     def recieve_place_fence_request(self, x, y, owner):
@@ -214,8 +216,8 @@ class Client:
                 elif key == curses.KEY_DOWN:
                     self.navigateMenu(False, True)
 
-            gameName = self.selectedElement.getName()
-            if gameName == "MakeGame":
+            gameName = self.selectedElement.getDisplayString()
+            if gameName == "New Game":
                 self.onUserStateChanged(UserState.MAKEGAME)
                 return
 
@@ -297,6 +299,7 @@ class Client:
             currentX = self.selectedCell.getPosX()
             currentY = self.selectedCell.getPosY()
 
+            self.stdscr.move(currentY, currentX);
             key = self.stdscr.getch()
             if Helpers.convertChar(key) == "q":
                 self.exitGame()
@@ -338,7 +341,8 @@ class Client:
     def onStartGame(self, game):
         self.game = game
         self.onUserStateChanged(UserState.GAME)
-        self.selectedCell = self.game.getGrid().getCellAt(0, 0)
+        self.selectedCell = self.game.getGrid().getCellAt(0, 1)
+        self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
         self.__connection.send_list_players_in_game();
 
     def exitGame(self):
@@ -398,9 +402,6 @@ class Client:
             curses.noecho()
             curses.curs_set(0)
 
-    def onStateChange(self):
-        self.draw()
-
     def selectCurrentElement(self):
         if self.selectedElement == None:
             return
@@ -409,18 +410,21 @@ class Client:
         self.stdscr.move(pos[0], pos[1])
 
     def navigateMenu(self, up, highlight):
+        self.draw()
+
         if self.selectedElement:
             self.selectedElement.display(self.stdscr, False)
 
         element = self.view.navigateMenu(self.selectedElement, up)
-        pos = element.getPosition()
-        self.selectedElement = element
-        self.stdscr.move(pos[0], pos[1])
+        if element != None:
+            pos = element.getPosition()
+            self.selectedElement = element
+            self.stdscr.move(pos[0], pos[1])
 
-        # highlighting
-        if highlight:
-            element.display(self.stdscr, highlight)
-        self.draw()
+            # highlighting
+            if highlight:
+                element.display(self.stdscr, highlight)
+
         self.selectCurrentElement()     
 
     def canMoveTo(self, cell):
@@ -429,21 +433,25 @@ class Client:
     def selectCell(self, x, y ,cell):
         self.selectedCell = cell
 
-    def draw(self):
+    def draw(self, noClear = False):
+        if not noClear:
+            self.stdscr.clear()
         grid = None
         userScores = None
         currentUserName = self.username
         roomsList = []
+        if self.gamesList != None:
+            roomsList = self.gamesList
+
         if self.game != None:
             grid = self.game.getGrid()
             userScores = self.game.getScores()
             self.userScores = userScores
-            roomsList = self.gamesList
         else:
             userScores = self.userScores
 
         self.view.draw(grid, currentUserName, userScores, roomsList, self.usernameWinner)
-        
+        self.stdscr.refresh()
 
 def main(stdscr):
     client = Client(stdscr)

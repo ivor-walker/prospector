@@ -186,7 +186,7 @@ class Connection:
             "login": self.login,
             "signup": self.signup,
             "newGame": self.new_game,
-            "existingGame": self.join_game,
+            "joinGame": self.join_game,
             "placeFence": self.place_fence,
             "leaveGame": self.leave_game,
         };

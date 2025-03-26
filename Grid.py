@@ -58,3 +58,11 @@ class Grid:
         cell.setCellType(CellType.FENCE)
         cell.setPlayerOwner(playerID)
         return True
+    
+    def getAllLandCells(self):
+        landCells = []
+        for y in range(0,self.dimensionY):
+            for x in range(0,self.dimensionX):
+                if self.getCellAt(x, y).getCellType() == CellType.LAND:
+                    landCells.append(self.getCellAt(x, y))
+        return landCells

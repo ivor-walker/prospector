@@ -23,6 +23,9 @@ class UIElement:
     def setDisplayString(self, string):
         self.displayString = str(string)
 
+    def getDisplayString(self):
+        return self.displayString
+
     def isSelectable(self):
         return self.selectable
     

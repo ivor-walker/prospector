@@ -45,7 +45,7 @@ class Server:
     """
     def __start_server(self,
         host = "localhost",
-        port = 12345,
+        port = 9990,
         max_clients = 5,
         timeout = 1,
     ):
@@ -155,7 +155,7 @@ class Server:
     """
     def get_game(self, name,
         check_no_game = True,
-        no_game = "No game with that name",
+        no_game = "No game with that name ",
         multiple_games = "Multiple games with the same name",
     ):
         # Get all games with requested name
@@ -163,7 +163,7 @@ class Server:
         # Return errors if no game or multiple games found
         if len(games) == 0:
             if check_no_game:
-                raise Exception(no_game);
+                raise Exception(no_game + name);
             else:
                 return None;
 

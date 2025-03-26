@@ -12,6 +12,7 @@ import string;
 
 from Game import Game;
 from Player import Player;
+from Enums import OnFencePlacedState
 
 class ServerConnection(Connection):
 
@@ -130,12 +131,11 @@ class ServerConnection(Connection):
     """
     Join an existing game
     """
-    def join_game(self,
-        name = None,
+    def join_game(self, game_name,
         game_not_found = "Game not found",
     ):
         # Check if game exists
-        game = self._server.get_game(name); 
+        game = self._server.get_game(game_name); 
 
         self.player.join_game(game);
         self.__game = game;
@@ -151,8 +151,10 @@ class ServerConnection(Connection):
     ):
         cell = self.__game.grid.getCellAt(x, y);
         attempt_place_fence = self.__game.tryPlaceFence(cell, player_id = self.player.username);
-        if not attempt_place_fence:
+        if attempt_place_fence == OnFencePlacedState.FAILURE:
             raise Exception("Fence cannot be placed");
+        elif attempt_place_fence == OnFencePlacedState.GAMEOVER:
+            print("TODO")
         
         game_player_ids = [player.username for player in self.__game.players];
         self._server.send_to_players(game_player_ids, "placeFence", "response", {

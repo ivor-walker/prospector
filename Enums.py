@@ -21,6 +21,11 @@ class CellWorth(Enum):
     SILVER = 2
     GOLD = 3
 
+class OnFencePlacedState(Enum):
+    SUCCESS = 1
+    FAILURE = 2
+    GAMEOVER = 3
+
 class Helpers:
     def convertString(b):
         if isinstance(b, bytes):

@@ -2,6 +2,7 @@ from Grid import Grid
 from Player import Player
 from Enums import CellType
 from Enums import CellWorth
+from Enums import OnFencePlacedState
 
 gParamBoundary_dimensions = [1, 30]
 gParamBoundary_maxPlayers = [2, 5]
@@ -28,6 +29,7 @@ class Game:
         self.name = name
         self.host_username = host_username;
         self.grid = Grid(dimX, dimY)
+        self.landCells = self.grid.getAllLandCells()
         self.maxPlayers = maxPlayers
         self.resourceAbundance = resourceAbundance
         self.id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = len_id));
@@ -64,9 +66,12 @@ class Game:
             self.checkAdjacentLandClaims(cell)
             self.nextTurn()
 
-            return True
+            if self.checkGameoverCondition():
+                return OnFencePlacedState.GAMEOVER
 
-        return False
+            return OnFencePlacedState.SUCCESS
+
+        return OnFencePlacedState.FAILURE
 
     def checkAdjacentLandClaims(self, cell):
         adjacent = self.getAdjacentCells(cell)
@@ -86,6 +91,23 @@ class Game:
         cell.setPlayerOwner(self.__current_player_username);
         cellWorth = cell.getCellWorth()
         self.__current_player.active_game_score += self.cellPointWorths[cellWorth]
+
+    def checkGameoverCondition(self):
+        # check every land cell
+        for land in self.landCells:
+            # only check if not claimed
+            if not land.isClaimed():                
+                # check fence owners. If all have same owner, land can still be claimed
+                adjacent = self.getAdjacentCells(land)
+                fenceOwner = None
+                for cellAdj in adjacent:
+                    owner = cellAdj.getPlayerOwner()
+                    if fenceOwner == None:
+                        fenceOwner = owner
+                        continue
+                    elif owner != fenceOwner:
+                        return False
+        return True
 
     def getAdjacentCells(self, cell):
         adjacent = []
@@ -153,4 +175,3 @@ class Game:
         
         target_index = target_indices[0];
         self.players.pop(target_index);
-

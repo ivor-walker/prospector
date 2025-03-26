@@ -93,9 +93,9 @@ class View:
             self.currentMenu.clearElements()
             index = 1
             for game in gamesList:
-                self.currentMenu.addElement(UIElement("Game" + str(index), 2 + index, 10, "Game" + str(index), True))
+                self.currentMenu.addElement(UIElement("Game" + str(index), 2 + index, 10, game, True))
                 index += 1
-            self.currentMenu.addElement(UIElement("MakeGame", 2 + index, 10, "New Game", True))
+            self.currentMenu.addElement(UIElement("MakeGame", 4 + index, 10, "New Game", True))
         elif self.currentMenu == self.menuEndscreen:
             self.currentMenu.clearElements()
             if playerWinner == currentUser:
@@ -187,3 +187,12 @@ class View:
     def onPlayerAdded(self, playerID, num):
         self.landColoursPlayers[playerID] = self.landColours[num]
         self.fenceColoursPlayers[playerID] = self.fenceColours[num]
+
+    def onPlayerRemoved(self, playerID):
+        if playerID in self.landColoursPlayers:
+            del self.landColoursPlayers[playerID]
+        if playerID in self.fenceColoursPlayers:
+            del self.fenceColoursPlayers[playerID]
+
+    def displayError(self, message):
+        self.stdscr.addstr(10, 1, str(message))

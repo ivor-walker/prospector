@@ -33,7 +33,7 @@ class UIMenu(UIElement):
 
         index = 0
         for i in range(len(self.elements)):
-            if self.elements[i] == currentElement:
+            if self.elements[i].getName() == currentElement.getName():
                 index = i
                 break
         
