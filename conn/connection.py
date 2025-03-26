@@ -1,11 +1,8 @@
 """
-Generic representation of a single connection between any two nodes. Abstract methods outline the communication protocol between the two nodes.
+Generic representation of a single connection between any two nodes. Contains methods for sending and receiving messages.
 """
-
-from abc import ABC, abstractmethod
-
-import asyncio
-
+import socket
+import threading
 import json
 
 import random
@@ -19,55 +16,61 @@ class Connection:
     Constructor: Get connection ID and optionally start listening
     """
     def __init__(self,
-        lenid= 10,
+        len_id= 10,
         server = None,
-        reader = None,
-        writer = None,
         sock = None,
         connection = None,
         send_acknowledgement = True,
-        debug = True,
+        debug = False,
     ):
         self.__debug = debug;
         self.__single_player = True;
+        self.__listening = False;
 
         # Randomly generate an id
-        self.id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = lenid));
+        self.id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = len_id));
 
         if server is not None:
             self._server = server;
         
         self.__connection_type = "server" if server is not None else "client";
         self.__send_acknowledgement = send_acknowledgement;
-
-        # Start listening for messages asynchronously
-        if reader is not None:
-            self.__reader = reader;
-            self.__writer = writer;
         
-        elif sock is not None:
-            self.__sock = sock;
-
+        # Write over provided connection
+        self.__sock = sock;
+        if sock is not None:
+            self.__reader = sock.makefile('r');
+            self.__writer = sock.makefile('w');
+            
         # Write to in-memory connection directly
-        elif connection is not None:
-            self.__connection = connection;
+        self.__connection = connection;
+
+        # Start listening for messages
+        self.__listening_thread = threading.Thread(target = self.start_listening);
+        self.__listening_thread.start();
     
     """
     Listen for messages from the other connection
     """
-    async def _listen(self):
+    def start_listening(self):
+        # Avoid starting multiple listeners
+        if self.__listening is True:
+            return;
+
         try:
-            self._listening = True;
+            self.__listening = True;
 
             # Listen for messages
-            while self._listening:
+            while self.__listening:
 
                 # Read a message
-                message = await self.__reader.read();
-                if not message:
+                line = self.__reader.readline();
+                if line == "":
                     break;
-                
-                self.handle_message(message);
+
+                line = line.strip();
+                if line:
+                    self.handle_message(message);
 
         except Exception as e:
             self._handle_error(e);
@@ -75,50 +78,11 @@ class Connection:
         finally:
             self._handle_error(f"Connection {self.id} closed");
 
-            if hasattr(self, "__writer"):
-                self.__writer.close()
-                await self.__writer.wait_closed();
+            if self.__sock is not None:
+                self.__sock.close();
 
+            return;
     
-    """
-    Send a message to the client
-    """
-    def send(self, category, status, message):
-        try:
-            # Convert message to serialisable format
-            if isinstance(message, type({}.keys())):
-                message = list(message);
-
-            # Wrap string in message object
-            if isinstance(message, str):
-                message = {"message": message};
-            # Send the message
-            message = {
-                "category": category,
-                "status": status,
-                "message": message
-            };
-
-            message = json.dumps(message);
-            message_info = f"Connection ID {self.id} ({self.__connection_type}) sending message: {message}";
-            
-            # Check if connection is still open 
-            if hasattr(self, "__writer"):
-                self.__writer.write(message);
-
-                if self.__debug:
-                    print(message_info + " through socket");
-            
-            # Write to in-memory connection directly
-            elif hasattr(self, "_Connection__connection"):
-                self.__connection.handle_message(message);
-
-                if self.__debug:
-                    print(message_info + " through memory");
-
-        except Exception as e:
-            self._handle_error(f"Error in sending message: {message}, {e}", attempt_send = False);
-
     """
     Handle an error in the client
     """
@@ -201,107 +165,50 @@ class Connection:
             
             # Send success message to client
             if self.__send_acknowledgement and message_category not in message_category_no_reply and message_status not in message_status_no_reply:
-                self.send(message_category, "success", {
-                    "message": "success"
-                });
+                self.send(message_category, "success", "succes");
 
         # Handle errors in message handling
         except Exception as e:
             self._handle_error(e, category = message_category);
-
-    """
-    Abstract methods for communication between client and server
-    """
     
     """
-    Connecting: client sends connection request, only client needs to implement
+    Send a message to the client
     """
-    @abstractmethod
-    def connect(self):
-        if hasattr(self, "_server"):
-            raise NotImplementedError("Method not implemented");
+    def send(self, category, status, message):
+        try:
+            # Convert message to serialisable format
+            if isinstance(message, type({}.keys())):
+                message = list(message);
 
-    """
-    Disconnect: both client and server need to be able to send and recieve disconnect messages
-    """
-    @abstractmethod
-    def disconnect(self):
-        raise NotImplementedError("Method not implemented");
-    
-    @abstractmethod
-    def recieve_disconnect(self):
-        raise NotImplementedError("Method not implemented");
+            # Wrap string in message object
+            if isinstance(message, str):
+                message = {"message": message};
 
-    
-    """
-    Logging into a player: client sends login request, server sends login response, client recieves login response
-    """
-    @abstractmethod
-    def login(self, username, password):
-        raise NotImplementedError("Method not implemented");
+            # Send the message
+            message = {
+                "category": category,
+                "status": status,
+                "message": message
+            };
 
-    @abstractmethod
-    def recieve_login(self, username, password):
-        if not hasattr(self, "_server"):
-            raise NotImplementedError("Method not implemented");
-    
-    """
-    Signing up a new player
-    """
-    @abstractmethod
-    def signup(self, username, password):
-        raise NotImplementedError("Method not implemented");
-    
-    @abstractmethod
-    def recieve_signup(self, username, password):
-        if not hasattr(self, "_server"):
-            raise NotImplementedError("Method not implemented");
+            message = json.dumps(message);
+            message_info = f"Connection ID {self.id} ({self.__connection_type}) sending message: {message}";
+            
+            # Check if connection is still open 
+            if self.__writer is not None: 
+                self.__writer.write(message);
+
+                if self.__debug:
+                    print(message_info + " through socket");
+            
+            # Write to in-memory connection directly
+            if self.__connection is not None: 
+                self.__connection.handle_message(message);
+
+                if self.__debug:
+                    print(message_info + " through memory");
+
+        except Exception as e:
+            self._handle_error(f"Error in sending message: {message}, {e}", attempt_send = False);
 
     
-    """
-    Creating a new game
-    """
-    @abstractmethod
-    def new_game(self, game_name):
-        raise NotImplementedError("Method not implemented");
-    
-    @abstractmethod
-    def recieve_new_game(self, game_name):
-        if not hasattr(self, "_server"):
-            raise NotImplementedError("Method not implemented");
-
-    
-    @abstractmethod
-    def existing_game(self, game_name):
-        raise NotImplementedError("Method not implemented");
-
-    @abstractmethod
-    def recieve_existing_game(self, game_name):
-        raise NotImplementedError("Method not implemented");
-
-
-    @abstractmethod
-    def place_fence(self, x, y, orientation):
-        raise NotImplementedError("Method not implemented");
-
-    @abstractmethod
-    def recieve_place_fence(self, x, y, orientation):
-        raise NotImplementedError("Method not implemented");
-
-    
-    @abstractmethod
-    def leave_game(self, game_name):
-        raise NotImplementedError("Method not implemented");
-
-    @abstractmethod
-    def recieve_leave_game(self, game_name):
-        raise NotImplementedError("Method not implemented");
-
-    
-    @abstractmethod
-    def list_games_names(self):
-        raise NotImplementedError("Method not implemented");
-
-    @abstractmethod
-    def recieve_list_games_names(self):
-        raise NotImplementedError("Method not implemented");

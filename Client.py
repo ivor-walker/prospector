@@ -17,6 +17,7 @@ from conn.server import Server
 from conn.server_connection import ServerConnection
 
 # multi-player
+import asyncio
 from conn.client_connection import ClientConnection
 
 from Player import Player
@@ -29,6 +30,7 @@ class Client:
             self.__server_connection = self.__server.create_client();
             self.__connection = ClientConnection(server_connection = self.__server_connection);
             self.__server_connection._Connection__connection = self.__connection;
+            
             
         # Connect to server via socket if multiplayer
         else:
@@ -159,6 +161,7 @@ class Client:
     
     def captureInput(self):
         if self.userState == UserState.LOGIN:
+            
             self.navigateMenu(True, False)
 
             key = self.stdscr.getstr()

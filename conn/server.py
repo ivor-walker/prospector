@@ -4,8 +4,9 @@ Recieves and processes requests from clients
 from conn.server_connection import ServerConnection;
 from Leaderboard import Leaderboard;
 
-import asyncio;
+import socket;
 
+import threading;
 
 class Server:
     def __init__(self,
@@ -17,54 +18,70 @@ class Server:
         # Initialise internal state
         self.games = {};
         self.__clients = {};
-    
+        self.__listening = False;
+        
+        # Start server socket and listening thread
         if not no_socket:
-            asyncio.run(self.__start_server())
-    
+            self.__start_server();
+            self.__thread = threading.Thread(target = self.__listen_for_new_sockets);
+            self.__thread.start();
+
     """
-    Listen for new sockets
+    Start server socket
     """
-    async def __start_server(self,
+    def __start_server(self,
         host = "localhost",
         port = 12345,
-        max_incoming_connections = 5,
+        max_clients = 5,
     ):
         # Create and bind socket
-        self.__server_socket = await asyncio.start_server(self.__create_network_client, host, port);
+        self.__server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
+        self.__server_socket.bind((host, port));
+        self.__server_socket.listen(max_clients);
+        print(f"Server started on {host}:{port}");
     
-        async with self.__server_socket:
-            await self.__server_socket.serve_forever();
+    """
+    Start listening for new sockets
+    """
+    def __listen_for_new_sockets(self):
+        if self.__listening:
+            return;
+
+        self.__listening = True;
+        while self.__listening:
+            # Blocks loop until new connection
+            try:
+                client_socket, client_address = self.__server_socket.accept();
+            except Exception as e:
+                traceback.print_exc();
+                print(f"Error accepting new connection: {e}");
+                break;
+
+            print(f"New connection from {client_address}");
+            self.create_client(sock = client_socket);
+        
+        self.__server_socket.close();
+        print("Server stopped listening for new connections");
 
     """
-    Create a new server connection synchronously
+    Create a new server connection to a client
     """
-    def create_client(self):
-        client = ServerConnection();
-        self.__register_client(client)
-        return client;
-
-    """
-    Create a new server connection to a client asynchronously
-    """
-    async def __create_network_client(self, reader, writer):
+    def create_client(self, 
+        sock = None,
+    ):
         client = ServerConnection(
             server = self,
-            reader = reader,
-            writer = writer,
+            sock = sock, 
         );
         self.__register_client(client);
 
         print(f"New client registered with server at serverConnection id {client.id}")
-        
-        await client._listen();
     
     """
     Register a client with the server
     """
     def __register_client(self, client):
         self.__clients[client.id] = client;
-    
-    
     
     """
     Get list of game names

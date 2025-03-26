@@ -13,22 +13,21 @@ class ClientConnection(Connection):
         host = "localhost",
         port = 12345,
         server_connection = None,
-        sock = None,
     ):
         self.listeners = []; 
         
-        # Multiplayer: communicate to a serverconnection through a socket (blocking)
         if not server_connection:
+            # Establish a blocking socket
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
             sock.connect((host, port));
-        
+            
         # Start listening loop
         super().__init__(
             connection = server_connection,
-            sock = sock,
             send_acknowledgement = False,
+            sock = sock,
         );	
-
+    
     """
     Register a listener (i.e Client) to this connection
     """

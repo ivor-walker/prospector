@@ -1,7 +1,7 @@
 """
 Class representing a connection from the server to a single client
 """
-import asyncio;
+import socket;
 import json;
 
 from conn.connection import Connection;
@@ -20,16 +20,13 @@ class ServerConnection(Connection):
     """
     def __init__(self, 
         server = None, 
-        reader = None,
-        writer = None,
+        sock = None,
         connection = None,
         len_id = 10,
     ):
-        # Start listening if a sock is provided
         super().__init__(
             server = server,
-            reader = None,
-            writer = None,
+            sock = sock,
             connection = connection,
             debug = True,
         );
