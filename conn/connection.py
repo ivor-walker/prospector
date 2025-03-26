@@ -2,8 +2,10 @@
 Generic representation of a single connection between any two nodes. Contains methods for sending and receiving messages.
 """
 import socket
-import threading
 import json
+
+import time
+import threading
 
 import random
 import string
@@ -36,57 +38,64 @@ class Connection:
         self.__connection_type = "server" if server is not None else "client";
         self.__send_acknowledgement = send_acknowledgement;
         
-        # Write over provided connection
-        self.__sock = sock;
-        if sock is not None:
-            self.__reader = sock.makefile('r');
-            self.__writer = sock.makefile('w');
-            
         # Write to in-memory connection directly
         self.__connection = connection;
 
-        # Start listening for messages
-        self.__listening_thread = threading.Thread(target = self.start_listening);
-        self.__listening_thread.start();
-    
+        # Write over provided connection
+        self._sock = sock;
+        if sock is not None:
+            self.__reader = sock.makefile('r');
+            self.__writer = sock.makefile('w');
+                
+            # Start listening for messages
+            self.__listening_thread = threading.Thread(target = self.__start_listening);
+            self.__listening_thread.daemon = True;
+            self.__listening_thread.start();
+                
     """
     Listen for messages from the other connection
     """
-    def start_listening(self):
+    def __start_listening(self):
         # Avoid starting multiple listeners
         if self.__listening is True:
             return;
-
+        
         try:
+            if self.__debug:
+                print(f"Connection {self.id} ({self.__connection_type}) listening for messages");
             self.__listening = True;
 
             # Listen for messages
             while self.__listening:
+                if self.__debug:
+                    print(f"Connection {self.id} ({self.__connection_type}) waiting for a message");
 
                 # Read a message
                 line = self.__reader.readline();
+
                 if line == "":
                     break;
 
                 line = line.strip();
                 if line:
-                    self.handle_message(message);
+                    self.handle_message(line);
 
         except Exception as e:
-            self._handle_error(e);
+            self.__handle_error(e);
 
         finally:
-            self._handle_error(f"Connection {self.id} closed");
+            self.__handle_error(f"Connection {self.id} closed");
 
-            if self.__sock is not None:
-                self.__sock.close();
+            if self._sock is not None:
+                self._sock.close();
+                self._sock = None;
 
             return;
     
     """
     Handle an error in the client
     """
-    def _handle_error(self, message,
+    def __handle_error(self, message,
         category = "generic_error",
         attempt_send = True
     ):
@@ -105,6 +114,52 @@ class Connection:
             return;
 
         self.send(category, "error", message);
+    
+    """
+    Send a message to the client
+    """
+    def send(self, category, status, message,
+        delimiter = "\n",
+    ):
+        try:
+            # Convert message to serialisable format
+            if isinstance(message, type({}.keys())):
+                message = list(message);
+
+            # Wrap string in message object
+            if isinstance(message, str):
+                message = {"message": message};
+
+            # Send the message
+            message = {
+                "category": category,
+                "status": status,
+                "message": message
+            };
+
+            str_message = json.dumps(message);
+
+            # Check if connection is still open 
+            if self._sock is not None:
+                socket_message = str_message + delimiter;
+                
+                self.__writer.write(socket_message);
+                self.__writer.flush();
+
+                if self.__debug:
+                    socket_message_info = f"Connection ID {self.id} ({self.__connection_type}) sending message: {socket_message} via socket";
+                    print(socket_message_info);
+            
+            # Write to in-memory connection directly
+            if self.__connection is not None: 
+                self.__connection.handle_message(str_message);
+
+                if self.__debug:
+                    memory_message_info = f"Connection ID {self.id} ({self.__connection_type}) sending message: {str_message} via memory";
+                    print(memory_message_info);
+
+        except Exception as e:
+            self.__handle_error(f"Error in sending message: {message}, {e}", attempt_send = False);
 
     """
     Handle a message from the client
@@ -114,13 +169,15 @@ class Connection:
         message_category_no_reply = ["disconnect", "listGamesNames"],
         message_status_no_reply = ["error"],
     ):
-        
+        if self.__debug: 
+            print(f"Connection {self.id} ({self.__connection_type}) received message: {message}");
+
         # Handle the message
         try:
             message = json.loads(message);
 
         except json.JSONDecodeError as e:
-            self._handle_error(e); 
+            self.__handle_error(e); 
         
         # Get the message category
         message_category = message["category"];
@@ -130,7 +187,7 @@ class Connection:
         # Handle the message
         try:
             if message_status == "error":
-                self._handle_error(message, attempt_send = False);
+                self.__handle_error(message, attempt_send = False);
 
             elif message_category == "disconnect":
                 self.disconnect();
@@ -163,52 +220,13 @@ class Connection:
             else:
                 raise Exception(unknown_message);
             
-            # Send success message to client
+            # Send successs message to client
             if self.__send_acknowledgement and message_category not in message_category_no_reply and message_status not in message_status_no_reply:
-                self.send(message_category, "success", "succes");
+                self.send(message_category, "successs", "success");
 
         # Handle errors in message handling
         except Exception as e:
-            self._handle_error(e, category = message_category);
+            self.__handle_error(e, category = message_category);
     
-    """
-    Send a message to the client
-    """
-    def send(self, category, status, message):
-        try:
-            # Convert message to serialisable format
-            if isinstance(message, type({}.keys())):
-                message = list(message);
-
-            # Wrap string in message object
-            if isinstance(message, str):
-                message = {"message": message};
-
-            # Send the message
-            message = {
-                "category": category,
-                "status": status,
-                "message": message
-            };
-
-            message = json.dumps(message);
-            message_info = f"Connection ID {self.id} ({self.__connection_type}) sending message: {message}";
-            
-            # Check if connection is still open 
-            if self.__writer is not None: 
-                self.__writer.write(message);
-
-                if self.__debug:
-                    print(message_info + " through socket");
-            
-            # Write to in-memory connection directly
-            if self.__connection is not None: 
-                self.__connection.handle_message(message);
-
-                if self.__debug:
-                    print(message_info + " through memory");
-
-        except Exception as e:
-            self._handle_error(f"Error in sending message: {message}, {e}", attempt_send = False);
-
+    
     

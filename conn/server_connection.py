@@ -68,7 +68,7 @@ class ServerConnection(Connection):
             player = self.signup(username = username, password = password)
         
         elif not player.check_password(password):
-            self._handle_error(passwordIncorrect);
+            raise Exception(passwordIncorrect);
         
         self.player = player;
         return player;
@@ -83,7 +83,7 @@ class ServerConnection(Connection):
     ):
         # Check if player already exists
         if self._server.leaderboard.get_player(username, check_no_player = False) is not None:
-            return self._handle_error(playerExists);
+            raise Exception(playerExists);
 
         # Create new player and register with leaderboard
         player = Player(username = username, password = password);
@@ -106,7 +106,7 @@ class ServerConnection(Connection):
     ):
         # Check if game already exists
         if self._server.get_game(name, check_no_game = False) is not None:
-            return self._handle_error(game_exists);
+            raise Exception(game_exists);
 
         # Create new game and add to server and player
         game = Game(
@@ -149,7 +149,7 @@ class ServerConnection(Connection):
         cell = self.__game.grid.getCellAt(x, y);
         attempt_place_fence = self.__game.tryPlaceFence(cell, player_id = self.player.username);
         if not attempt_place_fence:
-            self._handle_error("Fence cannot be placed");
+            raise Exception("Fence cannot be placed");
         
         game_player_ids = [player.username for player in self.__game.players];
         self._server.send_to_players(game_player_ids, "placeFence", "response", {

@@ -8,6 +8,11 @@ import socket;
 
 import threading;
 
+import traceback;
+
+import time;
+import sys;  
+
 class Server:
     def __init__(self,
         no_socket = False,
@@ -24,8 +29,17 @@ class Server:
         if not no_socket:
             self.__start_server();
             self.__thread = threading.Thread(target = self.__listen_for_new_sockets);
+            self.__thread.daemon = True;
             self.__thread.start();
+            
+            # Keep daemon thread alive
+            try:
+                while True:
+                    time.sleep(1);
 
+            except KeyboardInterrupt:
+                self.__stop();
+    
     """
     Start server socket
     """
@@ -33,11 +47,13 @@ class Server:
         host = "localhost",
         port = 12345,
         max_clients = 5,
+        timeout = 1,
     ):
         # Create and bind socket
         self.__server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
         self.__server_socket.bind((host, port));
         self.__server_socket.listen(max_clients);
+        self.__server_socket.settimeout(timeout);
         print(f"Server started on {host}:{port}");
     
     """
@@ -46,22 +62,43 @@ class Server:
     def __listen_for_new_sockets(self):
         if self.__listening:
             return;
-
+        
+        print("Server listening for new connections");
         self.__listening = True;
+
         while self.__listening:
             # Blocks loop until new connection
             try:
                 client_socket, client_address = self.__server_socket.accept();
+            except socket.timeout:
+                continue;
+
             except Exception as e:
                 traceback.print_exc();
-                print(f"Error accepting new connection: {e}");
+                print(f"Server error accepting new connection: {e}");
                 break;
-
+            
             print(f"New connection from {client_address}");
             self.create_client(sock = client_socket);
         
-        self.__server_socket.close();
         print("Server stopped listening for new connections");
+
+        self.__server_socket.close();
+        print("Server socket closed");
+        sys.exit(0);
+    
+    """
+    Stop listening and exit on ctrl+c
+    """
+    def __stop(self):
+        print("Recieved ctrl+c"); 
+
+        self.__listening = False;
+
+        # Keep daemon alive until listening stopped
+        while self.__thread.is_alive():
+            time.sleep(1);
+
 
     """
     Create a new server connection to a client

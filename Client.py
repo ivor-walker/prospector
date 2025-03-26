@@ -38,17 +38,6 @@ class Client:
         
         self.__connection.add_listener(self);
 
-        # Create sample users
-        self.__connection.send_signup(
-            username = "Lars",
-            password = "password"
-        );
-        
-        self.__connection.send_signup(
-            username = "Ivor",
-            password = "password"
-        );
-
         # init
         self.stdscr = stdscr
         self.view = View(stdscr)

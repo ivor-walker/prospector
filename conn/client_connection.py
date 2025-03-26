@@ -195,7 +195,7 @@ class ClientConnection(Connection):
     Recieve list of all games from server
     """
     def list_games_names(self, games):
-        [listener.recieve_game_names(games) for listener in self.listeners];
+        [listener.recieve_list_games_names(games) for listener in self.listeners];
 
     """
     Ask server to list players in current game
