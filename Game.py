@@ -31,7 +31,7 @@ class Game:
         
         self.dimX = dimX;
         self.dimY = dimY;
-        
+
         self.grid = Grid(dimX, dimY, resourceAbundance)
         self.landCells = self.grid.getAllLandCells()
         self.maxPlayers = maxPlayers
@@ -62,8 +62,8 @@ class Game:
     def tryPlaceFence(self, cell,
         player_id = None,
     ):
-        if player_id is None:
-            player_id = self.__current_player_username
+        if player_id != self.__current_player_username:
+            return OnFencePlacedState.FAILURE
 
         if self.grid.tryPlaceFence(cell, player_id):
             self.checkAdjacentLandClaims(cell)
