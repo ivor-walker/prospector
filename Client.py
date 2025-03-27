@@ -130,7 +130,6 @@ class Client:
     Listener for game over
     """
     def recieve_end_game(self, winner):
-        (); 
         self.usernameWinner = winner
         self.resetLocalGame()
         self.onUserStateChanged(UserState.ENDSCREEN)

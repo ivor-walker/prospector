@@ -176,7 +176,7 @@ class ServerConnection(Connection):
             raise Exception("Fence cannot be placed");
 
         elif attempt_place_fence == OnFencePlacedState.GAMEOVER:
-            return self.end_game(winner = self.__game.getWinner());
+            return self.end_game(winner = self.__game.getWinner().username);
     
         # Notify all players in game
         game_player_usernames = self.__get_other_usernames(); 

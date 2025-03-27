@@ -11,7 +11,7 @@ class ClientConnection(Connection):
     """
     def __init__(self,
         host = "localhost",
-        port = 9998,
+        port = 9999,
         server_connection = None,
     ):
         self.listeners = []; 

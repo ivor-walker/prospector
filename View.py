@@ -168,7 +168,7 @@ class View:
         for player in playerScores:
             currentColour = self.colourDefault
             if player.username == currentPlayer:
-                currentColour = self.colourBold
+                currentColour = self.colourDefault | curses.A_BOLD
             self.stdscr.addstr(offsetY, offsetX, str(player.username), currentColour)
             
             colour = self.getPlayerColour(player.username, True)
