@@ -185,6 +185,9 @@ class Client:
     Listeners for placing a fence
     """
     def recieve_place_fence_success(self):
+        if self.game == None:
+            return
+
         cell = self.game.getCellAt(self.selectedCell.getPosX(), self.selectedCell.getPosY())
         self.game.tryPlaceFence(cell, player_id = self.username);
         self.stdscr.clear()
@@ -196,6 +199,9 @@ class Client:
         self.displayError(message)
 
     def recieve_place_fence_request(self, x, y, owner):
+        if self.game == None:
+            return
+
         cell = self.game.getCellAt(x, y)
         self.game.tryPlaceFence(cell, player_id = owner);
         self.stdscr.clear()

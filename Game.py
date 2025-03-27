@@ -106,17 +106,22 @@ class Game:
             if not land.isClaimed():                
                 # check fence owners. If all have same owner, land can still be claimed
                 adjacent = self.getAdjacentCells(land)
-                fenceOwner = None
-                for cellAdj in adjacent:
-                    owner = cellAdj.getPlayerOwner()
-                    if fenceOwner != None:
-                        fenceOwner = owner
-                        continue
-                    elif (owner != fenceOwner) and (owner != None):
-                        return False
-                if fenceOwner == None:
+
+                ownerships = []
+                for adj in adjacent:
+                    ownerships.append(adj.getPlayerOwner())
+                
+                # check that ownerships are either none or all the same
+                ownership = None
+                allSameOrNone = True
+                for own in ownerships:
+                    if ownership == None:
+                        ownership = own
+                    if ownership != own and ownership != None and own != None:
+                        allSameOrNone = False
+                
+                if allSameOrNone:
                     return False
-        
         return True
 
     def getAdjacentCells(self, cell):
