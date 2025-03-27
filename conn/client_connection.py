@@ -11,7 +11,7 @@ class ClientConnection(Connection):
     """
     def __init__(self,
         host = "localhost",
-        port = 9989,
+        port = 9999,
         server_connection = None,
     ):
         self.listeners = []; 
@@ -120,12 +120,19 @@ class ClientConnection(Connection):
     """
     Recieve join game response from server
     """
-    def join_game(self, message):
-        if message == "success":
-            [listener.recieve_join_game_success() for listener in self.listeners];
-
-        else:
+    def join_game(self, 
+        message = None,
+        game_info = None,
+        player = None,
+    ):
+        if message is not None: 
             [listener.recieve_join_game_failure(message) for listener in self.listeners];
+
+        elif game_info is not None:  
+            [listener.recieve_join_game_success(game_info) for listener in self.listeners];
+
+        elif player is not None:
+            [listener.recieve_join_game_request(player) for listener in self.listeners];
 
     """
     Ask server to place a fence
@@ -142,8 +149,11 @@ class ClientConnection(Connection):
     """
     Recieve place fence response from server
     """
-    def place_fence(self, message):
-        if type(message) == str:
+    def place_fence(self, 
+        message = None,
+        fence_info = None
+    ):
+        if message is not None:
             if message == "success":
                 [listener.recieve_place_fence_success() for listener in self.listeners];
 
@@ -151,10 +161,11 @@ class ClientConnection(Connection):
                 [listener.recieve_place_fence_failure(message) for listener in self.listeners];
         
         # Server telling player of a newly placed fence
-        else:
-            [listener.recieve_place_fence_request(**message) for listener in self.listeners];
+        elif fence_info is not None:
+            [listener.recieve_place_fence_request(**fence_info) for listener in self.listeners];
 
     # Requests where failure is not possible
+
     """
     Ask server to leave
     """
@@ -183,7 +194,10 @@ class ClientConnection(Connection):
     """
     Recieve leave game request from server (either user was kicked or 
     """
-    def leave_game(self, player):
+    def leave_game(self, 
+        player = None,
+        message = None
+    ):
         [listener.recieve_leave_game(player) for listener in self.listeners];
         
     """
@@ -213,3 +227,25 @@ class ClientConnection(Connection):
     """
     def list_players_in_game(self, players):
         [listener.recieve_players_in_game(players) for listener in self.listeners];
+
+    """
+    Recieve an end game message from the server
+    """
+    def end_game(self, 
+        winner = None,
+    ):
+        [listener.recieve_end_game(winner) for listener in self.listeners];
+
+    """
+    Ask server to list user's statistics
+    """
+    def send_user_stats(self):
+        self.send("userStats", "request", {
+            "message": "Client requested user statistics"
+        });
+
+    """
+    Recieve user statistics from server
+    """
+    def user_stats(self, stats):
+        [listener.recieve_user_stats(stats) for listener in self.listeners];

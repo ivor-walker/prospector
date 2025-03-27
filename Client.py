@@ -13,7 +13,7 @@ import curses
 from curses import wrapper
 
 # single-player
-from conn.server import Server
+from server import Server
 from conn.server_connection import ServerConnection
 
 # multi-player
@@ -49,6 +49,8 @@ class Client:
         self.userState = UserState.NONE
         self.selectedElement = None
         self.userScores = None
+        self.userStatistics = None
+        self.errorMessage = ""
         self.blockInput = False
         self.resetLocalGame()
 
@@ -70,7 +72,6 @@ class Client:
     """
     def recieve_login_success(self):
         self.player = Player(username = self.username);
-
         self.onUserStateChanged(UserState.ROOMSLIST)
         self.blockInput = False
 
@@ -78,46 +79,64 @@ class Client:
     def recieve_login_failure(self, message):
         self.blockInput = False
         self.onUserStateChanged(UserState.LOGIN)
-        self.view.displayError(message)
-        # TODO Display failure message
+        self.displayError(message)
     
     """
     Listeners for joining an existing game
     """
     def recieve_join_game_success(self, game_options):
-         # Create local copy of game and start it
-        game = Game(
+        # Create local copy of game and join it
+        self.game = Game(
             **game_options
         );
-
-        self.onStartGame(game);
+        
+        self.game.add_player(self.player);
+        
+        self.onStartGame(self.game);
         self.blockInput = False
+        self.stdscr.clear()
+        self.draw()
+        self.stdscr.refresh()
+
+    def recieve_join_game_request(self, new_user): 
+        self.blockInput = False
+        player = Player(username = new_user);
+        self.game.add_player(player);
+        self.stdscr.clear()
+        self.draw()
+        self.stdscr.refresh()
 
     def recieve_join_game_failure(self, message):
         self.blockInput = False
         self.onUserStateChanged(UserState.ROOMSLIST);
-        self.view.displayError(message)
-        # TODO Display failure message
+        self.displayError(message)
     
     """
     Listener for leaving a game
     """
     def recieve_leave_game(self, username):
-        self.game.remove_player(username)
+        if self.game != None:
+            self.game.remove_player(username)
         self.view.onPlayerRemoved(username)
 
         if self.player.username == username:
             self.resetLocalGame()
             self.onUserStateChanged(UserState.ENDSCREEN)
-        else:
-            self.draw()
-            self.stdscr.refresh()
+        self.stdscr.clear()
+        self.draw()
+        self.stdscr.refresh()
 
     """
     Listener for game over
     """
-    def recieve_game_over(self):
-        ();
+    def recieve_end_game(self, winner):
+        (); 
+        self.usernameWinner = winner
+        self.resetLocalGame()
+        self.onUserStateChanged(UserState.ENDSCREEN)
+        self.stdscr.clear()
+        self.draw()
+        self.stdscr.refresh()
 
     """
     Listeners for listing games
@@ -126,6 +145,7 @@ class Client:
         self.gamesList = games
         self.draw()
         self.stdscr.refresh()
+        self.navigateMenu(True, True)
     
     """
     Listener for recieving players in a game
@@ -136,7 +156,7 @@ class Client:
         index = 0
         for player in players:
             self.view.onPlayerAdded(player.username, index)
-            index += 1
+            index += 1;
 
         self.draw()
         self.stdscr.refresh()
@@ -159,21 +179,21 @@ class Client:
     
     def recieve_new_game_failure(self, message):
         self.onUserStateChanged(UserState.ROOMSLIST);
-        self.view.displayError(message)
-        # TODO Display failure message
+        self.displayError(message)
 
     """
     Listeners for placing a fence
     """
     def recieve_place_fence_success(self):
+        cell = self.game.getCellAt(self.selectedCell.getPosX(), self.selectedCell.getPosY())
+        self.game.tryPlaceFence(cell, player_id = self.username);
         self.stdscr.clear()
         self.draw()
         self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
         self.stdscr.refresh()
 
     def recieve_place_fence_failure(self, message):
-        self.view.displayError(message)
-        # TODO Display failure message
+        self.displayError(message)
 
     def recieve_place_fence_request(self, x, y, owner):
         cell = self.game.getCellAt(x, y)
@@ -183,7 +203,14 @@ class Client:
         self.stdscr.move(self.selectedCell.getPosY(), self.selectedCell.getPosX());
         self.stdscr.refresh()
 
-    
+    """
+    Recieve a user's statistics
+    """
+    def recieve_user_stats(self, stats):
+        self.userStatistics = stats
+        self.draw()
+        self.stdscr.refresh()
+
     def captureInput(self):
         if self.blockInput:
             return
@@ -228,6 +255,8 @@ class Client:
                 self.__connection.send_join_game(
                     game_name = gameName
                 );
+                self.onUserStateChanged(UserState.GAME)
+                self.blockInput = True
                 return
 
         elif self.userState == UserState.MAKEGAME:
@@ -323,7 +352,7 @@ class Client:
                 );
         elif self.userState == UserState.ENDSCREEN:
             key = -1
-            while key != 10:
+            while key == -1:
                 key = self.stdscr.getch()
 
             self.onUserStateChanged(UserState.ROOMSLIST)
@@ -352,8 +381,15 @@ class Client:
 
     def exitGame(self):
         self.__connection.send_leave_game();
+        self.resetLocalGame()
+        self.onUserStateChanged(UserState.ENDSCREEN)
+        self.draw()
+        self.stdscr.refresh()
         
     def tryMoveCursor(self, currentX, currentY, moveX, moveY):
+        if self.userState != UserState.GAME:
+            return
+
         while True:
             currentX += moveX
             currentY += moveY
@@ -396,6 +432,7 @@ class Client:
             curses.curs_set(1)
         elif newState == UserState.ROOMSLIST:
             self.__connection.send_list_games_names();
+            self.__connection.send_user_stats()
             curses.noecho()
             curses.curs_set(1)
         elif newState == UserState.MAKEGAME:
@@ -407,6 +444,7 @@ class Client:
         elif newState == UserState.ENDSCREEN:
             curses.noecho()
             curses.curs_set(0)
+        self.stdscr.refresh()
 
     def selectCurrentElement(self, highlight = False):
         element = self.selectedElement
@@ -446,10 +484,13 @@ class Client:
     def draw(self):
         grid = None
         userScores = None
+        userStatistics = []
         currentUserName = self.username
         roomsList = []
         if self.gamesList != None:
             roomsList = self.gamesList
+        if self.userStatistics != None:
+            userStatistics = self.userStatistics
 
         if self.game != None:
             grid = self.game.getGrid()
@@ -458,7 +499,17 @@ class Client:
         else:
             userScores = self.userScores
 
-        self.view.draw(grid, currentUserName, userScores, roomsList, self.usernameWinner)
+        self.displayError()
+        self.view.draw(grid, currentUserName, userScores, roomsList, self.usernameWinner, userStatistics)
+
+    def displayError(self, message = ""):
+        if message != "":
+            self.errorMessage = message
+
+        if self.errorMessage != "":
+            self.view.displayError(self.errorMessage)
+            self.stdscr.refresh()
+        self.errorMessage = ""
 
 def main(stdscr):
     client = Client(stdscr)

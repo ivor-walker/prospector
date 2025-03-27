@@ -8,7 +8,7 @@ class Cell:
         self.y = y
         self.cellType = type
         self.cellWorth = worth
-        self.playerOwnerID = -1
+        self.playerOwnerID = None
 
     def getCellType(self):
         return self.cellType
@@ -32,4 +32,4 @@ class Cell:
         self.playerOwnerID = player
 
     def isClaimed(self):
-        return self.playerOwnerID != -1
+        return self.playerOwnerID != None

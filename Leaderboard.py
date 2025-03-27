@@ -38,3 +38,16 @@ class Leaderboard:
         # Return only player
         matched_key = matched_keys[0]
         return self.__players[matched_key]
+
+    """
+    Update player's wins, losses and draws
+    """
+    def update(self, game_player_usernames, winner):
+        # If there is a winner, add a win to the winner and a loss to all others
+        if winner is not None:
+            [self.__players[username].add_win() for username in game_player_usernames if username == winner];
+            [self.__players[username].add_loss() for username in game_player_usernames if username != winner];
+
+        # If there is no winner, add a draw to all players
+        else:
+            [self.__players[username].add_draw() for username in game_player_usernames];

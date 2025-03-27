@@ -13,7 +13,6 @@ import string
 import traceback
 
 class Connection:
-
     """
     Constructor: Get connection ID and optionally start listening
     """
@@ -28,6 +27,20 @@ class Connection:
         self.__debug = debug;
         self.__single_player = True;
         self.__listening = False;
+        
+        self.__category_handle_dict = {
+            "disconnect": self.disconnect,
+            "listGamesNames": self.list_games_names,
+            "listPlayersInGame": self.list_players_in_game,
+            "login": self.login,
+            "signup": self.signup,
+            "newGame": self.new_game,
+            "joinGame": self.join_game,
+            "placeFence": self.place_fence,
+            "leaveGame": self.leave_game,
+            "endGame": self.end_game,
+            "userStats": self.user_stats,
+        };
 
         # Randomly generate an id
         self.id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = len_id));
@@ -176,21 +189,10 @@ class Connection:
     """
     def handle_message(self, message,
         unknown_message = "Unknown message category",
-        message_category_no_reply = ["disconnect", "listGamesNames", "leaveGame", "listPlayersInGame"],
+        message_category_no_reply = ["disconnect", "listGamesNames", "leaveGame", "listPlayersInGame", "joinGame", "userStats"],
         message_status_no_reply = ["error"],
     ):
-        category_handle_dict = {
-            "disconnect": self.disconnect,
-            "listGamesNames": self.list_games_names,
-            "listPlayersInGame": self.list_players_in_game,
-            "login": self.login,
-            "signup": self.signup,
-            "newGame": self.new_game,
-            "joinGame": self.join_game,
-            "placeFence": self.place_fence,
-            "leaveGame": self.leave_game,
-        };
-
+        
         if self.__debug: 
             print(f"Connection {self.id} ({self.__connection_type}) received message: {message}");
 
@@ -208,12 +210,12 @@ class Connection:
         
         # Handle the message
         try:
-            if message_status == "error":
+            if message_category in self.__category_handle_dict:
+                self.__category_handle_dict[message_category](**message);
+            
+            elif message_status == "error":
                 self.__handle_error(message, attempt_send = False);
             
-            elif message_category in category_handle_dict:
-                category_handle_dict[message_category](**message);
-
             # Valid message category not sent
             else:
                 raise Exception(unknown_message);

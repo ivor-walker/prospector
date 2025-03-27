@@ -27,15 +27,16 @@ class Game:
     ):
         # Set game state
         self.name = name
-        self.host_username = host_username;
-        
+        self.id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = len_id));
+
         self.dimX = dimX;
         self.dimY = dimY;
-
-        self.grid = Grid(dimX, dimY, resourceAbundance)
+        self.resourceAbundance = resourceAbundance;
+        self.grid = Grid(dimX, dimY, resourceAbundance);
         self.landCells = self.grid.getAllLandCells()
+
+        self.host_username = host_username;
         self.maxPlayers = maxPlayers
-        self.id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = len_id));
 
         # Set player states
         self.players = [];
@@ -60,14 +61,14 @@ class Game:
     Try to place a fence on the grid
     """
     def tryPlaceFence(self, cell,
-        player_id = None,
+        player_id = None, isServer = False
     ):
-        if player_id != self.__current_player_username:
+        if isServer and (player_id is self.__current_player_username):
             return OnFencePlacedState.FAILURE
 
         if self.grid.tryPlaceFence(cell, player_id):
-            self.checkAdjacentLandClaims(cell)
-            self.nextTurn()
+            if not self.checkAdjacentLandClaims(cell, player_id):
+                self.nextTurn()
 
             if self.checkGameoverCondition():
                 return OnFencePlacedState.GAMEOVER
@@ -76,24 +77,27 @@ class Game:
 
         return OnFencePlacedState.FAILURE
 
-    def checkAdjacentLandClaims(self, cell):
+    def checkAdjacentLandClaims(self, cell, player_id):
+        claimedLand = False
         adjacent = self.getAdjacentCells(cell)
         for cellAdj in adjacent:
             if cellAdj.getCellType() == CellType.LAND and (not cellAdj.isClaimed()):
-                if self.checkLandClaim(cellAdj):
-                    self.onLandClaimed(cellAdj)
+                if self.checkLandClaim(cellAdj, player_id):
+                    self.onLandClaimed(cellAdj, player_id);
+                    claimedLand = True
+        return claimedLand
     
-    def checkLandClaim(self, cell):
+    def checkLandClaim(self, cell, player_id):
         landAjcaent = self.getAdjacentCells(cell)
         for fences in landAjcaent:
-            if (fences.getCellType() != CellType.FENCE) or (fences.getPlayerOwner() != self.__current_player_username):
+            if (fences.getCellType() != CellType.FENCE) or (fences.getPlayerOwner() != player_id):
                 return False
         return True
 
-    def onLandClaimed(self, cell):
-        cell.setPlayerOwner(self.__current_player_username);
+    def onLandClaimed(self, cell, player_id):
+        cell.setPlayerOwner(player_id);
         cellWorth = cell.getCellWorth()
-        self.__current_player.active_game_score += self.cellPointWorths[cellWorth]
+        self.getPlayerByID(player_id).active_game_score += self.cellPointWorths[cellWorth]
 
     def checkGameoverCondition(self):
         # check every land cell
@@ -105,11 +109,14 @@ class Game:
                 fenceOwner = None
                 for cellAdj in adjacent:
                     owner = cellAdj.getPlayerOwner()
-                    if fenceOwner == None:
+                    if fenceOwner != None:
                         fenceOwner = owner
                         continue
-                    elif owner != fenceOwner:
+                    elif (owner != fenceOwner) and (owner != None):
                         return False
+                if fenceOwner == None:
+                    return False
+        
         return True
 
     def getAdjacentCells(self, cell):
@@ -164,7 +171,7 @@ class Game:
 
         if player in self.players:
             raise Exception("Player already in game");
-
+        
         self.players.append(player);
 
     """
@@ -174,7 +181,8 @@ class Game:
         target_indices = [i for i, p in enumerate(self.players) if p.username == username];
 
         if len(target_indices) == 0:
-            raise Exception(f"Player {username} not in game");
+            return
+            #raise Exception(f"Player {username} not in game");
         
         target_index = target_indices[0];
         self.players.pop(target_index);
@@ -189,3 +197,8 @@ class Game:
                 highestScore = score
                 winner = player
         return winner
+
+    def getPlayerByID(self, username):
+        for player in self.players:
+            if player.username == username:
+                return player

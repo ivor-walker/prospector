@@ -12,6 +12,9 @@ class Player:
     ):
         self.username = username;
         self.__password = password;
+        self.__wins = 0;
+        self.__draws = 0;
+        self.__losses = 0;
 
         # Set game details
         self.__active_game = None;
@@ -19,24 +22,27 @@ class Player:
 
         # Create collections
         self.games = {};
-    
+
+            
     """
     Get the game the player is currently playing
     """
     def __get_active_game(self,
-        no_active_game = "Player is not in a game"
+        no_active_game = " is not in a game"
     ):
         if self.__active_game is None:
-            raise Exception(no_active_game);
+            raise Exception(self.username + no_active_game);
         
         return self.__active_game;
 
     """
     Set the game the player is currently playing
     """
-    def __set_active_game(self, game):
+    def __set_active_game(self, game,
+        already_in_game = " is already in this game"                     
+    ):
         if game is not None and self.__active_game is not None and game.id == self.__active_game.id:
-            raise Exception("Player is already in this game");
+            raise Exception(self.username + already_in_game);
 
         self.__active_game = game;
         self.games[game.id] = game; 
@@ -71,7 +77,32 @@ class Player:
     def leave_active_game(self):
         # Clean up active game
         active_game = self.__get_active_game();
-        active_game.remove_player(self.username);
+        if active_game != None:
+            active_game.remove_player(self.username);
         
         # Unset active game
         self.__active_game = None;
+
+
+    """
+    Get player statistics
+    """
+    def get_stats(self):
+        return { 
+            "wins": self.__wins,
+            "draws": self.__draws,
+            "losses": self.__losses,
+        };
+
+    """
+    Add wins, losses or draws to the player
+    """
+    def add_win(self):
+        self.__wins += 1;
+
+    def add_loss(self):
+        self.__losses += 1;
+
+    def add_draw(self):
+        self.__draws += 1;
+

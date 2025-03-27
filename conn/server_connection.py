@@ -39,13 +39,13 @@ class ServerConnection(Connection):
         # Stop listening loop and inform server
         self._listening = False;
         self._server.disconnect(self.id);
-
+        
+        if self._sock is not None:
+            self._sock.close();
+        
         # Inform other clients in game
         self.leave_game(); 
 
-        if self._sock is not None:
-            self._sock.close();
-    
     """
     Send disconnect to client
     """
@@ -136,9 +136,27 @@ class ServerConnection(Connection):
     ):
         # Check if game exists
         game = self._server.get_game(game_name); 
+        
+        if game.checkGameoverCondition():
+            raise Exception("Game is over");
 
         self.player.join_game(game);
         self.__game = game;
+        
+        self.send("joinGame", "success", {
+            "game_info": {
+                "name": game.name,
+                "dimX": game.dimX,
+                "dimY": game.dimY,
+                "maxPlayers": game.maxPlayers,
+                "resourceAbundance": game.resourceAbundance,
+            }
+        });
+        
+        self._server.send_to_players([player.username for player in game.players if player.username != self.player.username],
+        "joinGame", "request", {
+            "player": self.player.username
+        });
 
         return game;
 
@@ -149,21 +167,39 @@ class ServerConnection(Connection):
         x = None,
         y = None,
     ):
+        # Look for cell at x, y and place fence
         cell = self.__game.grid.getCellAt(x, y);
-        attempt_place_fence = self.__game.tryPlaceFence(cell, player_id = self.player.username);
+        attempt_place_fence = self.__game.tryPlaceFence(cell, player_id = self.player.username, isServer = True);
+        
+        # 
         if attempt_place_fence == OnFencePlacedState.FAILURE:
             raise Exception("Fence cannot be placed");
+
         elif attempt_place_fence == OnFencePlacedState.GAMEOVER:
-            print("TODO")
-        
-        game_player_ids = [player.username for player in self.__game.players];
-        self._server.send_to_players(game_player_ids, "placeFence", "response", {
-            "message": {
+            return self.end_game(winner = self.__game.getWinner());
+    
+        # Notify all players in game
+        game_player_usernames = self.__get_other_usernames(); 
+
+        self._server.send_to_players(game_player_usernames, "placeFence", "response", {
+            "fence_info": {
                 "x": x,
                 "y": y,
                 "owner": self.player.username,
             }
         });
+
+    """
+    Helper function to get all other players in the game
+    """
+    def __get_other_usernames(self):
+        return [player.username for player in self.__game.players if player.username != self.player.username];
+
+    """
+    Helper function to get all players in the game
+    """
+    def __get_all_usernames(self):
+        return [player.username for player in self.__game.players];
 
     """
     Send a new placed fence to the player's game
@@ -182,17 +218,28 @@ class ServerConnection(Connection):
     """
     Leave the current player's game
     """
-    def leave_game(self, player):
+    def leave_game(self, 
+        player = None,
+        message = None
+    ):
         # Tell all clients
-        game_player_ids = [p.username for p in self.__game.players];
-        self._server.send_to_players(game_player_ids, "leaveGame", "response", {
+        game_player_usernames = self.__get_all_usernames(); 
+        self._server.send_to_players(game_player_usernames, "leaveGame", "response", {
             "player": self.player.username
         });
 
         # Tell local player
         self.player.leave_active_game();
 
-        
+        # End game if only one player remaining
+        if len(self.__game.players) == 1:
+                all_usernames = self.__get_all_usernames();
+                if len(all_usernames) == 0:
+                    last_username = None;
+                else:
+                    last_username = all_usernames[0]
+                
+                self._server.end_game(self.__game, all_usernames, last_username);
     """
     List all games
     """
@@ -211,4 +258,26 @@ class ServerConnection(Connection):
         players_names = [player.username for player in self.__game.players];
         self.send("listPlayersInGame", "success", {
             "players": players_names
+        });
+
+    """
+    Notify users that game has ended
+    """
+    def end_game(self, 
+        winner = None
+    ):
+        game_player_usernames = self.__get_all_usernames(); 
+        self._server.end_game(self.__game, game_player_usernames, winner = winner);
+
+    """
+    Send current user statistics
+    """
+    def user_stats(self,
+        message = None
+    ):
+        if self.player is None:
+            raise Exception("Player not logged in");
+
+        self.send("userStats", "response", {
+            "stats": self.player.get_stats()
         });

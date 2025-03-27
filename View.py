@@ -29,7 +29,7 @@ class View:
         curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_YELLOW)
         self.colourLandWorth = curses.color_pair(6)
         curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_WHITE)
-        self.colourBold = curses.color_pair(7)
+        self.colourBold = curses.color_pair(7) | curses.A_BOLD
         curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_BLACK)
         self.colourDefault = curses.color_pair(8)
 
@@ -90,7 +90,7 @@ class View:
         elif userState == UserState.ENDSCREEN:
             self.currentMenu = self.menuEndscreen
 
-    def draw(self, grid, currentUser, playerScores, gamesList, playerWinner):
+    def draw(self, grid, currentUser, playerScores, gamesList, playerWinner, userStatistics):
         if self.currentMenu == self.menuGame:
             self.drawGame(grid, playerScores, currentUser)
         elif self.currentMenu == self.menuRooms:
@@ -100,12 +100,14 @@ class View:
                 self.currentMenu.addElement(UIElement("Game" + str(index), 2 + index, 10, game, True))
                 index += 1
             self.currentMenu.addElement(UIElement("MakeGame", 4 + index, 10, "New Game", True))
+            self.drawStatistics(userStatistics, currentUser)
         elif self.currentMenu == self.menuEndscreen:
             self.currentMenu.clearElements()
             if playerWinner == currentUser:
                 self.stdscr.addstr(1, 1, "You won the game!", self.colourDefault)
             else:
                 self.stdscr.addstr(1, 1, "You lost the game... " + str(playerWinner) + " won the game.", self.colourDefault)
+            self.stdscr.addstr(2, 1, "Press any key top continue.", self.colourDefault)
 
             if currentUser != None:
                 self.drawScores(playerScores, currentUser)
@@ -113,6 +115,9 @@ class View:
         self.currentMenu.displayMenu(self.stdscr)
 
     def drawGame(self, grid, playerScores, currentUser):
+        if grid == None:
+            return
+
         dimensionX = grid.getdimensionX()
         dimensionY = grid.getdimensionY()
 
@@ -169,6 +174,20 @@ class View:
             colour = self.getPlayerColour(player.username, True)
             self.stdscr.addstr(offsetY, offsetX + 20, str(playerScores[player]), colour)
             offsetY += 1
+    
+    def drawStatistics(self, userStatistics, currentPlayer):
+        if len(userStatistics) == 0:
+            return
+
+        offsetX = 40
+        offsetY = 2
+        self.stdscr.addstr(1, offsetX + 20, "User Statistics for " + currentPlayer, self.colourDefault | self.colourBold)
+        self.stdscr.addstr(offsetY + 2, offsetX + 20, "Wins: ", self.colourDefault)
+        self.stdscr.addstr(offsetY + 3, offsetX + 20, str(userStatistics["wins"]), self.colourDefault)
+        self.stdscr.addstr(offsetY + 5, offsetX + 20, "Losses: ", self.colourDefault)
+        self.stdscr.addstr(offsetY + 6, offsetX + 20, str(userStatistics["losses"]), self.colourDefault)
+        self.stdscr.addstr(offsetY + 8, offsetX + 20, "Draws: ", self.colourDefault)
+        self.stdscr.addstr(offsetY + 9, offsetX + 20, str(userStatistics["draws"]), self.colourDefault)
 
     def getPlayerColour(self, playerID, isFence):
         if(not playerID in self.landColoursPlayers):

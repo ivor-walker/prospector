@@ -1,3 +1,3 @@
-from conn.server import Server
+from server import Server
 
 server = Server();
